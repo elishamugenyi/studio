@@ -1,3 +1,47 @@
+
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "login-carousel-1",
+      "description": "A team collaborating around a whiteboard.",
+      "imageUrl": "https://picsum.photos/seed/carousel1/1920/1080",
+      "imageHint": "team collaboration"
+    },
+    {
+      "id": "login-carousel-2",
+      "description": "A modern, bright office space.",
+      "imageUrl": "https://picsum.photos/seed/carousel2/1920/1080",
+      "imageHint": "modern office"
+    },
+    {
+      "id": "login-carousel-3",
+      "description": "Charts and graphs on a digital screen.",
+      "imageUrl": "https://picsum.photos/seed/carousel3/1920/1080",
+      "imageHint": "data analytics"
+    },
+    {
+      "id": "avatar-ceo",
+      "description": "Avatar for CEO user",
+      "imageUrl": "https://picsum.photos/seed/ceo/100/100",
+      "imageHint": "professional portrait"
+    },
+    {
+      "id": "avatar-team-lead",
+      "description": "Avatar for Team Lead user",
+      "imageUrl": "https://picsum.photos/seed/lead/100/100",
+      "imageHint": "friendly portrait"
+    },
+    {
+      "id": "avatar-developer",
+      "description": "Avatar for Developer user",
+      "imageUrl": "https://picsum.photos/seed/dev/100/100",
+      "imageHint": "casual portrait"
+    },
+    {
+      "id": "avatar-finance",
+      "description": "Avatar for Finance user",
+      "imageUrl": "https://picsum.photos/seed/finance/100/100",
+      "imageHint": "formal portrait"
+    }
+  ]
 }
