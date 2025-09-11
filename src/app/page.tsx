@@ -1,3 +1,6 @@
+
+'use client';
+
 import Image from "next/image";
 import LoginForm from "@/components/login-form";
 import Logo from "@/components/logo";
@@ -65,12 +68,11 @@ export default function LoginPage() {
                       priority={index === 0}
                     />
                     <div className="absolute inset-0 bg-black/80" />
-                    <div className="relative z-10 flex flex-col items-start justify-center h-full text-white p-12">
-                        <Logo className="text-4xl" />
-                        <h1 className="text-2xl font-bold font-headline mt-4 text-primary">
+                    <div className="relative z-10 flex flex-col items-start justify-end h-full text-white p-12 pb-24">
+                        <h1 className="text-xl font-bold font-headline mt-4 text-primary">
                             {slide.title}
                         </h1>
-                        <p className="mt-2 max-w-sm text-base">
+                        <p className="mt-2 max-w-sm text-sm">
                             {slide.description}
                         </p>
                     </div>
