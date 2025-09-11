@@ -58,39 +58,24 @@ export default function LoginPage() {
                       priority={index === 0}
                     />
                     <div className="absolute inset-0 bg-black/80" />
+                    <div className="relative z-10 flex flex-col items-center justify-center h-full text-center text-white p-12">
+                        <Logo className="text-5xl" />
+                        <h1 className="text-3xl font-bold font-headline mt-4 text-primary">
+                            {slide.title}
+                        </h1>
+                        <p className="mt-2 max-w-md text-lg">
+                            {slide.description}
+                        </p>
+                    </div>
                 </CarouselItem>
               ))}
             </CarouselContent>
+            <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-20 text-white bg-white/20 hover:bg-white/30 border-none" />
+            <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-20 text-white bg-white/20 hover:bg-white/30 border-none" />
           </Carousel>
         </div>
         <div className="flex items-center justify-center p-6 min-h-screen bg-background">
-          {/* This div is for the right side, but the login form is positioned centrally */}
-        </div>
-
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-6">
-            <Logo className="text-3xl mb-4" />
             <LoginForm />
-            <div className="relative z-10 flex flex-col items-center justify-center h-full text-center text-white p-12 mt-4 max-w-lg">
-                <Carousel
-                    className="w-full"
-                    opts={{ loop: true }}
-                >
-                    <CarouselContent>
-                        {carouselSlides.map((slide, index) => (
-                            <CarouselItem key={index}>
-                                <h1 className="text-xl font-bold font-headline mt-2 text-primary">
-                                    {slide.title}
-                                </h1>
-                                <p className="mt-2 max-w-md text-sm text-white/90">
-                                    {slide.description}
-                                </p>
-                            </CarouselItem>
-                        ))}
-                    </CarouselContent>
-                    <CarouselPrevious className="absolute left-[-50px] top-1/2 -translate-y-1/2 z-20 text-white bg-white/20 hover:bg-white/30 border-none" />
-                    <CarouselNext className="absolute right-[-50px] top-1/2 -translate-y-1/2 z-20 text-white bg-white/20 hover:bg-white/30 border-none" />
-                </Carousel>
-            </div>
         </div>
       </div>
     </UserProvider>
