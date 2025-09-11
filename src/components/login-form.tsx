@@ -216,7 +216,7 @@ export default function LoginForm() {
       case "success":
         return "Success";
       default:
-        return "Login";
+        return "TPM-Login";
     }
   }
 
