@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'TekView',
-  description: 'Tekjuice Project Management and Assignment',
+  title: 'TPM',
+  description: 'Tekjuice Project Manager and Developer Assignment',
 };
 
 export default function RootLayout({

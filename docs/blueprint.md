@@ -1,4 +1,4 @@
-# **App Name**: TekView
+# **App Name**: Tekjuice Project Manager -TPM
 
 ## Core Features:
 

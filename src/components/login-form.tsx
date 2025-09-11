@@ -237,7 +237,7 @@ export default function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm border-none bg-background/60 shadow-2xl backdrop-blur-lg md:border-solid">
+    <Card className="w-full max-w-sm bg-white/95 shadow-2xl backdrop-blur-sm text-card-foreground">
       <CardHeader className="items-center text-center">
         {step !== 'success' && <Lock className="h-8 w-8 text-primary mb-2" />}
         <CardTitle className="text-2xl font-headline">{getTitle()}</CardTitle>

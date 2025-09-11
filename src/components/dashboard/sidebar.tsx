@@ -41,7 +41,7 @@ export default function AppSidebar() {
         <nav className="flex flex-col items-center gap-4 px-2 py-4">
           <Link href="/dashboard" className="mb-2">
             <Package2 className="h-6 w-6 text-primary" />
-            <span className="sr-only">TekView</span>
+            <span className="sr-only">TPM</span>
           </Link>
           {navItems.filter(item => user && item.roles.includes(user.role)).map((item) => (
             <Tooltip key={item.label} delayDuration={0}>
