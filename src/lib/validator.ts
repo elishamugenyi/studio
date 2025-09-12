@@ -23,20 +23,20 @@ export interface ValidationResult {
     const errors: string[] = [];
   
     // Allowed roles
-    const allowedRoles = ['Developer', 'Admin', 'CEO', 'Finance', 'Team Lead', 'Planner'];
+    const allowedRoles = ['Developer', 'Admin', 'CEO', 'Finance', 'Team Lead'];
   
     // First Name
     if (!firstName || firstName.trim() === '') {
       errors.push('First name is required.');
-    } else if (!/^[A-Za-z' -]+$/.test(firstName)) {
-        errors.push('First name can only contain letters, apostrophes, hyphens, and spaces.');
-    }
+    } else if (!/^[A-Z][a-zA-Z]*$/.test(firstName)) {
+      errors.push('First name must start with a capital letter and can only contain letters.');
+    } 
   
     // Last Name
     if (!lastName || lastName.trim() === '') {
       errors.push('Last name is required.');
-    } else if (!/^[A-Za-z' -]+$/.test(lastName)) {
-        errors.push('Last name can only contain letters, apostrophes, hyphens, and spaces.');
+    } else if (!/^[A-Z][a-zA-Z]*$/.test(lastName)) {
+        errors.push('Last name must start with a capital letter and can only contain letters.');
     }
   
     // Email
