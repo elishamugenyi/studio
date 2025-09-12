@@ -49,7 +49,13 @@ export async function POST(req: Request) {
       const body = await req.json();
       let { firstName, lastName, email, role } = body;
       
-      // Capitalize the first letter of the role
+      // Capitalize first letter of names and role
+      if (firstName && typeof firstName === 'string') {
+        firstName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+      }
+      if (lastName && typeof lastName === 'string') {
+        lastName = lastName.charAt(0).toUpperCase() + lastName.slice(1);
+      }
       if (role && typeof role === 'string') {
         role = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
       }
@@ -115,7 +121,13 @@ export async function PUT(req: Request) {
         const body = await req.json();
         let { firstName, lastName, email, role, password } = body;
 
-        // Capitalize the first letter of the role
+        // Capitalize first letter of names and role
+        if (firstName && typeof firstName === 'string') {
+            firstName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+        }
+        if (lastName && typeof lastName === 'string') {
+            lastName = lastName.charAt(0).toUpperCase() + lastName.slice(1);
+        }
         if (role && typeof role === 'string') {
             role = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
         }
