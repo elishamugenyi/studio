@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,26 +18,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { UserRole } from "@/hooks/use-user";
+import type { User, UserRole } from "@/hooks/use-user";
 import { useUser } from "@/hooks/use-user";
-import { Loader2, Lock, Check, ArrowLeft } from "lucide-react";
+import { Loader2, Lock, Check, ArrowLeft, UserPlus } from "lucide-react";
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
-} from "@/components/ui/input-otp"
+} from "@/components/ui/input-otp";
+import { useToast } from "@/hooks/use-toast";
 
-
-type FormStep = "email" | "password" | "forgotPasswordEmail" | "forgotPasswordOtp" | "success";
+type FormStep = "email" | "password" | "forgotPasswordEmail" | "forgotPasswordOtp" | "completeSignUp" | "success";
 
 export default function LoginForm() {
-  const { login } = useUser();
+  const { login, loginWithUserObject } = useUser();
+  const { toast } = useToast();
   const [step, setStep] = useState<FormStep>("email");
   const [email, setEmail] = useState("user@tekview.com");
   const [password, setPassword] = useState("password");
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [selectedRole, setSelectedRole] = useState<UserRole | "">("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
+
+  // State for sign-up form
+  const [signupForm, setSignupForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    role: "" as UserRole | "",
+    password: "",
+    confirmPassword: "",
+  });
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,12 +62,13 @@ export default function LoginForm() {
     e.preventDefault();
     if (selectedRole) {
       setIsLoading(true);
-      // Simulate network request
+      // Simulate network request - in a real app, you would validate credentials
       setTimeout(() => {
         setIsLoading(false);
         setStep("success");
         setTimeout(() => {
-          login(selectedRole);
+          // This uses a predefined user object for demo purposes
+          login(selectedRole); 
         }, 1000);
       }, 1000);
     }
@@ -79,13 +92,106 @@ export default function LoginForm() {
     setStep("email");
   };
 
+  const handleEmailBlur = async () => {
+    if (!signupForm.email) return;
+    setIsVerifyingEmail(true);
+    try {
+      const res = await fetch(`/api/reg_users?email=${signupForm.email}`);
+      if (res.status === 404) {
+        toast({
+          variant: "destructive",
+          title: "User Not Found",
+          description: "This email is not registered for sign-up.",
+        });
+        setSignupForm(prev => ({ ...prev, firstName: "", lastName: "", role: "" }));
+      } else if (res.ok) {
+        const data = await res.json();
+        if (data.password) {
+            toast({
+                variant: "destructive",
+                title: "Account Already Active",
+                description: "This account has already been set up. Please log in.",
+            });
+            setStep("email");
+            setEmail(data.email);
+        } else {
+            setSignupForm(prev => ({
+                ...prev,
+                firstName: data.firstname,
+                lastName: data.lastname,
+                role: data.role,
+            }));
+        }
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to verify email.",
+      });
+    } finally {
+        setIsVerifyingEmail(false);
+    }
+  };
+  
+  const handleCompleteSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (signupForm.password !== signupForm.confirmPassword) {
+      toast({
+        variant: "destructive",
+        title: "Passwords do not match",
+        description: "Please re-enter your password.",
+      });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/reg_users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(signupForm),
+      });
+
+      if (res.ok) {
+        setStep("success");
+        const userToLogin: User = {
+            name: `${signupForm.firstName} ${signupForm.lastName}`,
+            firstName: signupForm.firstName,
+            lastName: signupForm.lastName,
+            email: signupForm.email,
+            role: signupForm.role as UserRole,
+            avatarUrl: `https://picsum.photos/seed/${signupForm.email}/100/100`
+        };
+        setTimeout(() => {
+          loginWithUserObject(userToLogin);
+        }, 1000);
+
+      } else {
+        const errorData = await res.json();
+        toast({
+          variant: "destructive",
+          title: "Sign-Up Failed",
+          description: errorData.error || "An unexpected error occurred.",
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not complete sign-up.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const renderContent = () => {
     switch (step) {
       case "success":
         return (
           <div className="flex flex-col items-center justify-center text-center p-8">
             <Check className="h-16 w-16 text-green-500 mb-4 animate-pulse" />
-            <p className="text-lg font-medium">Login Successful!</p>
+            <p className="text-lg font-medium">Success!</p>
             <p className="text-muted-foreground">Redirecting...</p>
           </div>
         );
@@ -135,10 +241,60 @@ export default function LoginForm() {
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Login
             </Button>
           </form>
-        )
+        );
+        case "completeSignUp":
+            return (
+              <form onSubmit={handleCompleteSignUp} className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="Enter your work email"
+                    value={signupForm.email}
+                    onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
+                    onBlur={handleEmailBlur}
+                    required
+                  />
+                </div>
+                {isVerifyingEmail && <div className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying email...</div>}
+                {signupForm.firstName && (
+                    <>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="fname">First Name</Label>
+                                <Input id="fname" value={signupForm.firstName} readOnly className="bg-muted/50" />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="lname">Last Name</Label>
+                                <Input id="lname" value={signupForm.lastName} readOnly className="bg-muted/50" />
+                            </div>
+                        </div>
+                        <div className="grid gap-2">
+                             <Label htmlFor="role-display">Role</Label>
+                             <Input id="role-display" value={signupForm.role} readOnly className="bg-muted/50" />
+                        </div>
+                         <div className="grid gap-2">
+                            <Label htmlFor="signup-password">Password</Label>
+                            <Input id="signup-password" type="password" required value={signupForm.password} onChange={(e) => setSignupForm({...signupForm, password: e.target.value})} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="confirm-password">Confirm Password</Label>
+                            <Input id="confirm-password" type="password" required value={signupForm.confirmPassword} onChange={(e) => setSignupForm({...signupForm, confirmPassword: e.target.value})} />
+                        </div>
+                    </>
+                )}
+                <Button type="submit" className="w-full" disabled={isLoading || isVerifyingEmail || !signupForm.firstName}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : 'Complete Sign-Up'}
+                </Button>
+                <Button variant="link" size="sm" onClick={() => setStep("email")}>
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Login
+                </Button>
+              </form>
+            );
       case "password":
         return (
-          <form onSubmit={handleLogin} className="grid bg-white shadow-2xl backdrop-blur-sm text-card-foreground p-8 h-[600px] gap-4">
+          <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -177,6 +333,7 @@ export default function LoginForm() {
                   <SelectItem value="Team Lead">Team Lead</SelectItem>
                   <SelectItem value="Developer">Developer</SelectItem>
                   <SelectItem value="Finance">Finance</SelectItem>
+                  <SelectItem value="Planner">Planner</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -191,22 +348,28 @@ export default function LoginForm() {
       case "email":
       default:
         return (
-          <form onSubmit={handleNext} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full">
-              Next
+          <div className="grid gap-4">
+            <form onSubmit={handleNext} className="grid gap-4">
+                <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                    id="email"
+                    type="email"
+                    placeholder="m@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                />
+                </div>
+                <Button type="submit" className="w-full">
+                Next
+                </Button>
+            </form>
+             <Button variant="outline" className="w-full" onClick={() => setStep("completeSignUp")}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Complete Sign-Up
             </Button>
-          </form>
+          </div>
         );
     }
   };
@@ -218,6 +381,8 @@ export default function LoginForm() {
         return "Forgot Password";
       case "success":
         return "Success";
+      case "completeSignUp":
+        return "Complete Your Registration";
       default:
         return "TPM-Login";
     }
@@ -233,6 +398,8 @@ export default function LoginForm() {
         return "Enter your password and select your role to continue.";
       case "success":
         return "";
+      case "completeSignUp":
+        return "Enter your email to load your details and set a password.";
       case "email":
       default:
         return "Enter your email to login";
@@ -242,7 +409,8 @@ export default function LoginForm() {
   return (
     <Card className="w-full max-w-sm bg-white/95 shadow-2xl backdrop-blur-sm text-card-foreground">
       <CardHeader className="items-center text-center">
-        {step !== 'success' && <Lock className="h-8 w-8 text-primary mb-2" />}
+        {step !== 'success' && step !== 'completeSignUp' && <Lock className="h-8 w-8 text-primary mb-2" />}
+        {step === 'completeSignUp' && <UserPlus className="h-8 w-8 text-primary mb-2" />}
         <CardTitle className="text-2xl font-headline">{getTitle()}</CardTitle>
         <CardDescription className="text-sm text-black">
           {getDescription()}

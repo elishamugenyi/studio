@@ -1,26 +1,34 @@
 'use client';
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { Users } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
-export type UserRole = 'CEO' | 'Team Lead' | 'Developer' | 'Finance';
+
+export type UserRole = 'CEO' | 'Team Lead' | 'Developer' | 'Finance' | 'Planner';
 
 export type User = {
   name: string;
+  firstName: string;
+  lastName: string;
   role: UserRole;
   email: string;
   avatarUrl: string;
 };
 
-const users: Record<UserRole, User> = {
-  'CEO': { name: 'Alex Thompson', role: 'CEO', email: 'alex.t@tekview.com', avatarUrl: 'https://picsum.photos/seed/ceo/100/100' },
-  'Team Lead': { name: 'Samantha Ray', role: 'Team Lead', email: 'sam.r@tekview.com', avatarUrl: 'https://picsum.photos/seed/lead/100/100' },
-  'Developer': { name: 'Mike Chen', role: 'Developer', email: 'mike.c@tekview.com', avatarUrl: 'https://picsum.photos/seed/dev/100/100' },
-  'Finance': { name: 'Jessica Wang', role: 'Finance', email: 'jess.w@tekview.com', avatarUrl: 'https://picsum.photos/seed/finance/100/100' },
+// Demo users object
+const users: Record<UserRole, Omit<User, 'name'>> = {
+  'CEO': { firstName: 'Alex', lastName: 'Thompson', role: 'CEO', email: 'alex.t@tekview.com', avatarUrl: 'https://picsum.photos/seed/ceo/100/100' },
+  'Team Lead': { firstName: 'Samantha', lastName: 'Ray', role: 'Team Lead', email: 'sam.r@tekview.com', avatarUrl: 'https://picsum.photos/seed/lead/100/100' },
+  'Developer': { firstName: 'Mike', lastName: 'Chen', role: 'Developer', email: 'mike.c@tekview.com', avatarUrl: 'https://picsum.photos/seed/dev/100/100' },
+  'Finance': { firstName: 'Jessica', lastName: 'Wang', role: 'Finance', email: 'jess.w@tekview.com', avatarUrl: 'https://picsum.photos/seed/finance/100/100' },
+  'Planner': { firstName: 'Tom', lastName: 'Planner', role: 'Planner', email: 'tom.p@tekview.com', avatarUrl: 'https://picsum.photos/seed/planner/100/100' },
 };
 
 interface UserContextType {
   user: User | null;
   login: (role: UserRole) => void;
+  loginWithUserObject: (user: User) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -34,9 +42,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const storedRole = localStorage.getItem('userRole') as UserRole | null;
-      if (storedRole && users[storedRole]) {
-        setUser(users[storedRole]);
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
       }
     } catch (error) {
       console.error("Failed to access localStorage", error);
@@ -47,17 +55,35 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const login = (role: UserRole) => {
     try {
-      localStorage.setItem('userRole', role);
-      setUser(users[role]);
-      router.push('/dashboard');
+      const userData = users[role];
+      if(userData) {
+        const fullUser: User = {
+            ...userData,
+            name: `${userData.firstName} ${userData.lastName}`,
+        };
+        localStorage.setItem('user', JSON.stringify(fullUser));
+        setUser(fullUser);
+        router.push('/dashboard');
+      }
     } catch (error) {
       console.error("Failed to access localStorage", error);
     }
   };
 
+  const loginWithUserObject = (userPayload: User) => {
+    try {
+        localStorage.setItem('user', JSON.stringify(userPayload));
+        setUser(userPayload);
+        router.push('/dashboard');
+    } catch (error) {
+        console.error("Failed to access localStorage", error);
+    }
+  };
+
+
   const logout = () => {
     try {
-      localStorage.removeItem('userRole');
+      localStorage.removeItem('user');
       setUser(null);
       router.push('/');
     } catch (error) {
@@ -66,7 +92,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, login, logout, isLoading }}>
+    <UserContext.Provider value={{ user, login, loginWithUserObject, logout, isLoading }}>
       {children}
     </UserContext.Provider>
   );
@@ -78,4 +104,20 @@ export function useUser() {
     throw new Error('useUser must be used within a UserProvider');
   }
   return context;
+}
+
+export function UserAvatar() {
+  const { user } = useUser();
+
+  if (!user) {
+    return <Users className="h-5 w-5" />;
+  }
+  
+  const initials = `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase();
+
+  return (
+    <Avatar className="h-9 w-9">
+        <AvatarFallback>{initials}</AvatarFallback>
+    </Avatar>
+  )
 }

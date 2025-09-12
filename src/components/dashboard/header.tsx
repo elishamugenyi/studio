@@ -26,20 +26,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { useUser } from '@/hooks/use-user';
+import { useUser, UserAvatar } from '@/hooks/use-user';
 import Logo from '../logo';
 import { notifications } from '@/lib/data';
 import { Badge } from '../ui/badge';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from '@/components/ui/card';
 
 const mobileNavItems = [
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['CEO', 'Team Lead', 'Developer', 'Finance'] },
+    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['CEO', 'Team Lead', 'Developer', 'Finance', 'Planner'] },
     { href: '#', icon: ListTodo, label: 'Tasks', roles: ['CEO', 'Team Lead', 'Developer'] },
     { href: '#', icon: BarChart3, label: 'Projects', roles: ['CEO', 'Team Lead', 'Developer'] },
     { href: '#', icon: Users, label: 'Team', roles: ['CEO', 'Team Lead'] },
@@ -122,22 +115,13 @@ export default function AppHeader() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon" className="overflow-hidden rounded-full">
-            {user ? (
-              <Image
-                src={user.avatarUrl}
-                width={36}
-                height={36}
-                alt="Avatar"
-                className="overflow-hidden rounded-full"
-                data-ai-hint="avatar"
-              />
-            ) : (
-                <Users className="h-5 w-5"/>
-            )}
+            <UserAvatar />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>{user?.name || "My Account"}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {user?.email && <DropdownMenuItem disabled className="text-xs text-muted-foreground">{user.email}</DropdownMenuItem>}
           <DropdownMenuSeparator />
           <DropdownMenuItem>Settings</DropdownMenuItem>
           <DropdownMenuItem>Support</DropdownMenuItem>
