@@ -135,7 +135,7 @@ export default function LoginForm() {
         )
       case "password":
         return (
-          <form onSubmit={handleLogin} className="grid gap-4">
+          <form onSubmit={handleLogin} className="grid bg-white shadow-2xl backdrop-blur-sm text-card-foreground p-8 h-[600px] gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -232,7 +232,7 @@ export default function LoginForm() {
         return "";
       case "email":
       default:
-        return "Enter your email to login to your dashboard.";
+        return "Enter your email to login";
     }
   }
 
@@ -241,7 +241,7 @@ export default function LoginForm() {
       <CardHeader className="items-center text-center">
         {step !== 'success' && <Lock className="h-8 w-8 text-primary mb-2" />}
         <CardTitle className="text-2xl font-headline">{getTitle()}</CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm text-black">
           {getDescription()}
         </CardDescription>
       </CardHeader>
