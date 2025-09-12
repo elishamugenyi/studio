@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
       // Check for existing email
       const existingUser = await client.sql`SELECT * FROM reg_users WHERE email = ${email};`;
-      if (existingUser.rowCount > 0) {
+      if (existingUser.rows.length > 0) {
         return NextResponse.json(
           { error: 'Email already exists. Please use a different email.' },
           { status: 409, headers }
