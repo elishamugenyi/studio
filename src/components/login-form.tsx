@@ -35,6 +35,7 @@ export default function LoginForm() {
   const [step, setStep] = useState<FormStep>("email");
   const [email, setEmail] = useState("user@tekview.com");
   const [password, setPassword] = useState("password");
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [selectedRole, setSelectedRole] = useState<UserRole | "">("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -97,6 +98,8 @@ export default function LoginForm() {
                 id="forgot-email"
                 type="email"
                 placeholder="Enter your email to reset password"
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
                 required
               />
             </div>
