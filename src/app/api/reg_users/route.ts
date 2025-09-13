@@ -1,168 +1,102 @@
-//this file seeds the reg_users table to provide credentials to login.
-import { NextResponse, NextRequest } from 'next/server';
-import bcrypt from 'bcryptjs';
-import { db } from '@/lib/db'; 
-import { validateUserInput } from '@/lib/validator';
+// src/app/api/reg_users/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { hash } from 'bcryptjs';
 
-// CORS Headers
-const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+// Capitalize first letter of a string
+function capitalize(str: string): string {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
 
-// GET handler to fetch user by email
-export async function GET(req: NextRequest) {
-  const client = await db.connect();
-  try {
-    const { searchParams } = new URL(req.url);
+// GET user by email
+export async function GET(request: NextRequest) {
+    const searchParams = request.nextUrl.searchParams;
     const email = searchParams.get('email');
 
     if (!email) {
-      return NextResponse.json({ error: 'Email query parameter is required' }, { status: 400 });
+        return NextResponse.json({ error: 'Email query parameter is required.' }, { status: 400 });
     }
 
-    const { rows } = await client.sql`
-      SELECT regID, firstName, lastName, email, role FROM reg_users WHERE email = ${email};
-    `;
+    try {
+        const result = await db.query('SELECT firstname, lastname, email, role, password FROM registered_users WHERE email = $1', [email]);
+        
+        if (result.rows.length === 0) {
+            return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+        }
+        
+        const user = result.rows[0];
+        
+        // Don't expose the hashed password
+        const { password, ...userWithoutPassword } = user;
 
-    if (rows.length === 0) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404, headers });
+        return NextResponse.json({ ...userWithoutPassword, hasPassword: !!password }, { status: 200 });
+    } catch (error) {
+        console.error('Database Error:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
-
-    return NextResponse.json(rows[0], { status: 200, headers });
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Error fetching user', details: (error as Error).message },
-      { status: 500, headers }
-    );
-  } finally {
-    client.release();
-  }
 }
 
 
-// POST handler → add user (password stays NULL)
-export async function POST(req: Request) {
-    const client = await db.connect();
+// POST to create a new user (for admins)
+export async function POST(request: NextRequest) {
+    const { firstName, lastName, email, role } = await request.json();
+
+    const capitalizedFirstName = capitalize(firstName);
+    const capitalizedLastName = capitalize(lastName);
+    const capitalizedRole = capitalize(role);
+
     try {
-      const body = await req.json();
-      let { firstName, lastName, email, role } = body;
-      
-      // Capitalize first letter of names and role
-      if (firstName && typeof firstName === 'string') {
-        firstName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
-      }
-      if (lastName && typeof lastName === 'string') {
-        lastName = lastName.charAt(0).toUpperCase() + lastName.slice(1);
-      }
-      if (role && typeof role === 'string') {
-        role = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
-      }
-
-      // Validate user input
-      const validation = validateUserInput({ firstName, lastName, email, role });
-      if (!validation.valid) {
-        return NextResponse.json({ errors: validation.errors }, { status: 400 });
-      }
-  
-      // Ensure table exists
-      await client.sql`
-        CREATE TABLE IF NOT EXISTS reg_users (
-          regID UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-          firstName VARCHAR(255) NOT NULL,
-          lastName VARCHAR(255) NOT NULL,
-          email VARCHAR(255) NOT NULL UNIQUE,
-          role VARCHAR(50) NOT NULL,
-          password VARCHAR(255)
+        // Check for duplicate email
+        const existingUser = await db.query('SELECT * FROM registered_users WHERE email = $1', [email]);
+        if (existingUser.rows.length > 0) {
+            return NextResponse.json({ error: 'Email already registered.' }, { status: 409 }); // 409 Conflict
+        }
+        
+        const result = await db.query(
+            'INSERT INTO registered_users (firstname, lastname, email, role) VALUES ($1, $2, $3, $4) RETURNING id, firstname, lastname, email, role',
+            [capitalizedFirstName, capitalizedLastName, email, capitalizedRole]
         );
-      `;
+        
+        return NextResponse.json(result.rows[0], { status: 201 });
 
-      // Check for existing email
-      const existingUser = await client.sql`SELECT * FROM reg_users WHERE email = ${email};`;
-      if (existingUser.rows.length > 0) {
-        return NextResponse.json(
-          { error: 'Email already exists. Please use a different email.' },
-          { status: 409, headers }
-        );
-      }
-  
-      // Insert user (password remains NULL)
-      await client.sql`
-        INSERT INTO reg_users (firstName, lastName, email, role)
-        VALUES (${firstName}, ${lastName}, ${email}, ${role});
-      `;
-  
-      return NextResponse.json(
-        { message: 'User created successfully with null password' },
-        { status: 201, headers }
-      );
     } catch (error) {
-      // Handle potential race condition on unique constraint
-      if (error instanceof Error && error.message.includes('duplicate key value violates unique constraint')) {
-        return NextResponse.json(
-            { error: 'Email already exists. Please use a different email.' },
-            { status: 409, headers }
-          );
-      }
-      return NextResponse.json(
-        { error: 'Error creating user', details: (error as Error).message },
-        { status: 500, headers }
-      );
-    } finally {
-      client.release();
+        console.error('Database Error:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
-  }
+}
 
-// PUT handler → update password
-export async function PUT(req: Request) {
-    const client = await db.connect();
+// PUT to update user password (for user sign-up completion)
+export async function PUT(request: NextRequest) {
+    const { email, password, confirmPassword } = await request.json();
+
+    if (password !== confirmPassword) {
+        return NextResponse.json({ error: 'Passwords do not match.' }, { status: 400 });
+    }
+
     try {
-        const body = await req.json();
-        let { firstName, lastName, email, role, password } = body;
+        // First, check if the user exists and if they already have a password
+        const existingUserResult = await db.query('SELECT password FROM registered_users WHERE email = $1', [email]);
 
-        // Capitalize first letter of names and role
-        if (firstName && typeof firstName === 'string') {
-            firstName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+        if (existingUserResult.rows.length === 0) {
+            return NextResponse.json({ error: 'User not found.' }, { status: 404 });
         }
-        if (lastName && typeof lastName === 'string') {
-            lastName = lastName.charAt(0).toUpperCase() + lastName.slice(1);
-        }
-        if (role && typeof role === 'string') {
-            role = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+        
+        const existingUser = existingUserResult.rows[0];
+        if (existingUser.password) {
+            return NextResponse.json({ error: 'You are already set up. Please log in.' }, { status: 409 }); // 409 Conflict
         }
 
-        const validation = validateUserInput({ firstName, lastName, email, role, password, validatePassword: true });
-        if (!validation.valid) {
-            return NextResponse.json({ errors: validation.errors }, { status: 400 });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const result = await client.sql`
-        UPDATE reg_users
-        SET password = ${hashedPassword}
-        WHERE email = ${email}
-        RETURNING regID, email;
-        `;
-
-        if (result.rowCount === 0) {
-        return NextResponse.json(
-            { error: 'User not found' },
-            { status: 404, headers }
+        const hashedPassword = await hash(password, 10);
+        const result = await db.query(
+            'UPDATE registered_users SET password = $1 WHERE email = $2 RETURNING id, firstname, lastname, email, role',
+            [hashedPassword, email]
         );
-        }
 
-        return NextResponse.json(
-        { message: 'Password updated successfully' },
-        { status: 200, headers }
-        );
+        return NextResponse.json({ message: 'Password updated successfully.', user: result.rows[0] }, { status: 200 });
+
     } catch (error) {
-        return NextResponse.json(
-        { error: 'Error updating password', details: (error as Error).message },
-        { status: 500, headers }
-        );
-    } finally {
-        client.release();
+        console.error('Database Error:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
