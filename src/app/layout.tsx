@@ -1,17 +1,21 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { initDb } from '@/lib/dbInit';
 
 export const metadata: Metadata = {
   title: 'TPM',
   description: 'Tekjuice Project Manager and Developer Assignment',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+    // Run DB initialization once on the server
+    await initDb({ drop: false }); // set drop:true for a clean slate in dev
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
