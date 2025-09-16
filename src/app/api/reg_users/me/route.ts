@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 export async function GET(request: NextRequest) {
     try {
         const cookieStore = cookies();
-        const tokenCookie = cookieStore.get('authToken');
+        const tokenCookie = (await cookieStore).get('authToken');
 
         if (!tokenCookie) {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

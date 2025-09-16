@@ -36,8 +36,11 @@ export async function initDb({ drop = false } = {}) {
     }
 
     console.log("✅ Database initialized");
+    return { success: true, message: "Database initialized successfully." };
   } catch (error) {
-    console.error("❌ Database init error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown database error";
+    console.error("❌ Database init error:", errorMessage);
+    return { success: false, message: "Database initialization failed.", error: errorMessage };
   } finally {
     client.release();
   }

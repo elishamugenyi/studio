@@ -13,8 +13,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-    // Run DB initialization once on the server
-    await initDb({ drop: false }); // set drop:true for a clean slate in dev
+  // Database initialization is now handled by the /api/db/init route
+  // await initDb({ drop: false }); 
 
   return (
     <html lang="en" suppressHydrationWarning>
