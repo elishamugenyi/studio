@@ -30,8 +30,8 @@ export default function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [step, setStep] = useState<FormStep>("email");
-  const [email, setEmail] = useState("user@tekview.com");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
@@ -299,7 +299,7 @@ export default function LoginForm() {
                          <div className="grid gap-2">
                             <Label htmlFor="signup-password">Password</Label>
                             <div className="relative">
-                                <Input id="signup-password" type={showSignupPassword ? "text" : "password"} required value={signupForm.password} onChange={(e) => setSignupForm({...signupForm, password: e.target.value})} />
+                                <Input id="signup-password" type={showSignupPassword ? "text" : "password"} required value={signupForm.password} onChange={(e) => setSignupForm({...signupForm, password: e.target.value})} placeholder="Create a password" />
                                 <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8" onClick={() => setShowSignupPassword(!showSignupPassword)}>
                                     {showSignupPassword ? <EyeOff /> : <Eye />}
                                 </Button>
@@ -308,7 +308,7 @@ export default function LoginForm() {
                         <div className="grid gap-2">
                             <Label htmlFor="confirm-password">Confirm Password</Label>
                             <div className="relative">
-                                <Input id="confirm-password" type={showConfirmPassword ? "text" : "password"} required value={signupForm.confirmPassword} onChange={(e) => setSignupForm({...signupForm, confirmPassword: e.target.value})} />
+                                <Input id="confirm-password" type={showConfirmPassword ? "text" : "password"} required value={signupForm.confirmPassword} onChange={(e) => setSignupForm({...signupForm, confirmPassword: e.target.value})} placeholder="Confirm your password"/>
                                 <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                                     {showConfirmPassword ? <EyeOff /> : <Eye />}
                                 </Button>
@@ -336,6 +336,7 @@ export default function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="bg-muted/50"
+                readOnly
               />
             </div>
             <div className="grid gap-2">
@@ -350,7 +351,7 @@ export default function LoginForm() {
                 </a>
               </div>
               <div className="relative">
-                <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="Enter your password" />
                 <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8" onClick={() => setShowPassword(!showPassword)}>
                     {showPassword ? <EyeOff /> : <Eye />}
                 </Button>
@@ -375,7 +376,7 @@ export default function LoginForm() {
                 <Input
                     id="email"
                     type="email"
-                    placeholder="m@example.com"
+                    placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -444,3 +445,5 @@ export default function LoginForm() {
     </Card>
   );
 }
+
+    
