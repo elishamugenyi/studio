@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -13,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { User, UserRole } from "@/hooks/use-user";
 import { useUser } from "@/hooks/use-user";
-import { Loader2, Lock, Check, ArrowLeft, UserPlus } from "lucide-react";
+import { Loader2, Lock, Check, ArrowLeft, UserPlus, Eye, EyeOff } from "lucide-react";
 import {
   InputOTP,
   InputOTPGroup,
@@ -34,6 +35,11 @@ export default function LoginForm() {
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
+
+  // Password visibility states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // State for sign-up form
   const [signupForm, setSignupForm] = useState({
@@ -292,11 +298,21 @@ export default function LoginForm() {
                         </div>
                          <div className="grid gap-2">
                             <Label htmlFor="signup-password">Password</Label>
-                            <Input id="signup-password" type="password" required value={signupForm.password} onChange={(e) => setSignupForm({...signupForm, password: e.target.value})} />
+                            <div className="relative">
+                                <Input id="signup-password" type={showSignupPassword ? "text" : "password"} required value={signupForm.password} onChange={(e) => setSignupForm({...signupForm, password: e.target.value})} />
+                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8" onClick={() => setShowSignupPassword(!showSignupPassword)}>
+                                    {showSignupPassword ? <EyeOff /> : <Eye />}
+                                </Button>
+                            </div>
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="confirm-password">Confirm Password</Label>
-                            <Input id="confirm-password" type="password" required value={signupForm.confirmPassword} onChange={(e) => setSignupForm({...signupForm, confirmPassword: e.target.value})} />
+                            <div className="relative">
+                                <Input id="confirm-password" type={showConfirmPassword ? "text" : "password"} required value={signupForm.confirmPassword} onChange={(e) => setSignupForm({...signupForm, confirmPassword: e.target.value})} />
+                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                                    {showConfirmPassword ? <EyeOff /> : <Eye />}
+                                </Button>
+                            </div>
                         </div>
                     </>
                 )}
@@ -333,7 +349,12 @@ export default function LoginForm() {
                   Forgot your password?
                 </a>
               </div>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <div className="relative">
+                <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8" onClick={() => setShowPassword(!showPassword)}>
+                    {showPassword ? <EyeOff /> : <Eye />}
+                </Button>
+              </div>
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
