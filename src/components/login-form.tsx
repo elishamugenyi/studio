@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,13 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { User, UserRole } from "@/hooks/use-user";
 import { useUser } from "@/hooks/use-user";
 import { Loader2, Lock, Check, ArrowLeft, UserPlus } from "lucide-react";
@@ -27,17 +20,18 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 type FormStep = "email" | "password" | "forgotPasswordEmail" | "forgotPasswordOtp" | "completeSignUp" | "success";
 
 export default function LoginForm() {
-  const { login, loginWithUserObject } = useUser();
+  const { loginWithUserObject, fetchUser } = useUser();
+  const router = useRouter();
   const { toast } = useToast();
   const [step, setStep] = useState<FormStep>("email");
   const [email, setEmail] = useState("user@tekview.com");
   const [password, setPassword] = useState("password");
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
-  const [selectedRole, setSelectedRole] = useState<UserRole | "">("");
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
 
@@ -58,19 +52,40 @@ export default function LoginForm() {
     }
   };
   
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedRole) {
-      setIsLoading(true);
-      // Simulate network request - in a real app, you would validate credentials
-      setTimeout(() => {
-        setIsLoading(false);
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/reg_users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
         setStep("success");
         setTimeout(() => {
-          // This uses a predefined user object for demo purposes
-          login(selectedRole); 
+          // The user context will now be updated via the UserProvider's effect
+          // which calls the /api/reg_users/me endpoint
+          loginWithUserObject(data.user);
         }, 1000);
-      }, 1000);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: data.error || "An unexpected error occurred.",
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not log in. Please try again.",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -152,26 +167,27 @@ export default function LoginForm() {
         body: JSON.stringify(signupForm),
       });
 
+      const data = await res.json();
+
       if (res.ok) {
         setStep("success");
         const userToLogin: User = {
-            name: `${signupForm.firstName} ${signupForm.lastName}`,
-            firstName: signupForm.firstName,
-            lastName: signupForm.lastName,
-            email: signupForm.email,
-            role: signupForm.role as UserRole,
-            avatarUrl: `https://picsum.photos/seed/${signupForm.email}/100/100`
+            name: `${data.user.firstName} ${data.user.lastName}`,
+            firstName: data.user.firstName,
+            lastName: data.user.lastName,
+            email: data.user.email,
+            role: data.user.role as UserRole,
+            avatarUrl: `https://picsum.photos/seed/${data.user.email}/100/100`
         };
         setTimeout(() => {
           loginWithUserObject(userToLogin);
         }, 1000);
 
       } else {
-        const errorData = await res.json();
         toast({
           variant: "destructive",
           title: "Sign-Up Failed",
-          description: errorData.error || "An unexpected error occurred.",
+          description: data.error || "An unexpected error occurred.",
         });
       }
     } catch (error) {
@@ -301,7 +317,8 @@ export default function LoginForm() {
                 id="email"
                 type="email"
                 value={email}
-                readOnly
+                onChange={(e) => setEmail(e.target.value)}
+                required
                 className="bg-muted/50"
               />
             </div>
@@ -318,27 +335,9 @@ export default function LoginForm() {
               </div>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="role">Role</Label>
-              <Select
-                onValueChange={(value) => setSelectedRole(value as UserRole)}
-                defaultValue={selectedRole}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CEO">CEO</SelectItem>
-                  <SelectItem value="Team Lead">Team Lead</SelectItem>
-                  <SelectItem value="Developer">Developer</SelectItem>
-                  <SelectItem value="Finance">Finance</SelectItem>
-                  <SelectItem value="Planner">Planner</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" className="w-full" disabled={!selectedRole || isLoading}>
-              {isLoading ? <Loader2 className="animate-spin" /> : 'Verify'}
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? <Loader2 className="animate-spin" /> : 'Login'}
             </Button>
              <Button variant="link" size="sm" onClick={() => setStep("email")}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
@@ -362,7 +361,7 @@ export default function LoginForm() {
                 />
                 </div>
                 <Button type="submit" className="w-full">
-                Next
+                Login
                 </Button>
             </form>
              <Button variant="outline" className="w-full" onClick={() => setStep("completeSignUp")}>
@@ -383,6 +382,8 @@ export default function LoginForm() {
         return "Success";
       case "completeSignUp":
         return "Complete Your Registration";
+      case "password":
+        return "Welcome Back";
       default:
         return "TPM-Login";
     }
@@ -395,14 +396,14 @@ export default function LoginForm() {
       case "forgotPasswordOtp":
         return "Check your email for the One-Time Password.";
       case "password":
-        return "Enter your password and select your role to continue.";
+        return "Enter your password to continue.";
       case "success":
         return "";
       case "completeSignUp":
         return "Enter your email to load your details and set a password.";
       case "email":
       default:
-        return "Enter your email to login";
+        return "Enter your email to login or sign up.";
     }
   }
 

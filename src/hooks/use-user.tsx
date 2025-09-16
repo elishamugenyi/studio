@@ -1,13 +1,13 @@
 'use client';
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 export type UserRole = 'CEO' | 'Team Lead' | 'Developer' | 'Finance' | 'Planner';
 
-export type User = {
+export interface User {
   name: string;
   firstName: string;
   lastName: string;
@@ -16,21 +16,13 @@ export type User = {
   avatarUrl: string;
 };
 
-// Demo users object
-const users: Record<UserRole, Omit<User, 'name'>> = {
-  'CEO': { firstName: 'Alex', lastName: 'Thompson', role: 'CEO', email: 'alex.t@tekview.com', avatarUrl: 'https://picsum.photos/seed/ceo/100/100' },
-  'Team Lead': { firstName: 'Samantha', lastName: 'Ray', role: 'Team Lead', email: 'sam.r@tekview.com', avatarUrl: 'https://picsum.photos/seed/lead/100/100' },
-  'Developer': { firstName: 'Mike', lastName: 'Chen', role: 'Developer', email: 'mike.c@tekview.com', avatarUrl: 'https://picsum.photos/seed/dev/100/100' },
-  'Finance': { firstName: 'Jessica', lastName: 'Wang', role: 'Finance', email: 'jess.w@tekview.com', avatarUrl: 'https://picsum.photos/seed/finance/100/100' },
-  'Planner': { firstName: 'Tom', lastName: 'Planner', role: 'Planner', email: 'tom.p@tekview.com', avatarUrl: 'https://picsum.photos/seed/planner/100/100' },
-};
-
 interface UserContextType {
   user: User | null;
-  login: (role: UserRole) => void;
+  login: (role: UserRole) => void; // This will be deprecated/removed
   loginWithUserObject: (user: User) => void;
   logout: () => void;
   isLoading: boolean;
+  fetchUser: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -40,59 +32,60 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
+  const fetchUser = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+      const res = await fetch('/api/reg_users/me');
+      if (res.ok) {
+        const { user: userData } = await res.json();
+        const fullUser = {
+          ...userData,
+          name: `${userData.firstName} ${userData.lastName}`,
+          avatarUrl: `https://picsum.photos/seed/${userData.email}/100/100`,
+        };
+        setUser(fullUser);
+      } else {
+        setUser(null);
+        // Don't redirect here, let pages handle it
       }
     } catch (error) {
-      console.error("Failed to access localStorage", error);
+      console.error("Failed to fetch user", error);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const login = (role: UserRole) => {
-    try {
-      const userData = users[role];
-      if(userData) {
-        const fullUser: User = {
-            ...userData,
-            name: `${userData.firstName} ${userData.lastName}`,
-        };
-        localStorage.setItem('user', JSON.stringify(fullUser));
-        setUser(fullUser);
-        router.push('/dashboard');
-      }
-    } catch (error) {
-      console.error("Failed to access localStorage", error);
-    }
-  };
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
 
   const loginWithUserObject = (userPayload: User) => {
+    // This function is called after a successful login/signup.
+    // It sets the user state immediately for a better UX,
+    // then redirects to the dashboard.
+    setUser(userPayload);
+    router.push('/dashboard');
+  };
+
+  const logout = async () => {
     try {
-        localStorage.setItem('user', JSON.stringify(userPayload));
-        setUser(userPayload);
-        router.push('/dashboard');
+      await fetch('/api/reg_users/logout', { method: 'POST' });
     } catch (error) {
-        console.error("Failed to access localStorage", error);
+        console.error("Failed to log out:", error);
+    } finally {
+      setUser(null);
+      router.push('/');
     }
   };
 
-
-  const logout = () => {
-    try {
-      localStorage.removeItem('user');
-      setUser(null);
-      router.push('/');
-    } catch (error) {
-      console.error("Failed to access localStorage", error);
-    }
+  // This login function is now deprecated in favor of API-based login
+  const login = (role: UserRole) => {
+    console.warn("Legacy login function called. This should be replaced by API calls.");
   };
 
   return (
-    <UserContext.Provider value={{ user, login, loginWithUserObject, logout, isLoading }}>
+    <UserContext.Provider value={{ user, login, loginWithUserObject, logout, isLoading, fetchUser }}>
       {children}
     </UserContext.Provider>
   );
@@ -117,7 +110,8 @@ export function UserAvatar() {
 
   return (
     <Avatar className="h-9 w-9">
-        <AvatarFallback>{initials}</AvatarFallback>
+      <AvatarImage src={user.avatarUrl} alt={`${user.name}'s avatar`} />
+      <AvatarFallback>{initials}</AvatarFallback>
     </Avatar>
   )
 }
