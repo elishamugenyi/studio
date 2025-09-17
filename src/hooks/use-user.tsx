@@ -110,8 +110,7 @@ export function UserAvatar() {
 
   return (
     <Avatar className="h-9 w-9">
-      <AvatarImage src={user.avatarUrl} alt={`${user.name}'s avatar`} />
-      <AvatarFallback>{initials}</AvatarFallback>
+      <AvatarFallback className="bg-primary/20 text-primary font-bold">{initials}</AvatarFallback>
     </Avatar>
   )
 }
