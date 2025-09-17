@@ -1,4 +1,3 @@
-
 import { db } from "@/lib/db";
 
 // Initialize and manage database schema
@@ -8,12 +7,12 @@ export async function initDb({ drop = false } = {}) {
     if (drop) {
       console.log("⚠️ Dropping existing tables...");
       await client.query(`
+        DROP TABLE IF EXISTS reg_users CASCADE;
         DROP TABLE IF EXISTS finance CASCADE;
         DROP TABLE IF EXISTS module CASCADE;
         DROP TABLE IF EXISTS developer CASCADE;
         DROP TABLE IF EXISTS team_lead CASCADE;
         DROP TABLE IF EXISTS project CASCADE;
-        DROP TABLE IF EXISTS reg_users CASCADE;
       `);
     }
 
@@ -29,29 +28,13 @@ export async function initDb({ drop = false } = {}) {
       );
     `);
 
-    // Project table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS project (
-        projectId SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        description TEXT,
-        duration VARCHAR(100),
-        developerName VARCHAR(255),
-        developerId INT,
-        status VARCHAR(50) DEFAULT 'Pending',
-        review TEXT,
-        progress INT DEFAULT 0
-      );
-    `);
-    
     // Team Lead table
     await client.query(`
       CREATE TABLE IF NOT EXISTS team_lead (
         teamLeadId SERIAL PRIMARY KEY,
         firstName VARCHAR(255) NOT NULL,
         lastName VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        developerId INT UNIQUE
+        email VARCHAR(255) UNIQUE NOT NULL
       );
     `);
 
@@ -65,7 +48,23 @@ export async function initDb({ drop = false } = {}) {
         expertise VARCHAR(255),
         department VARCHAR(255),
         assignedTeamLead INT,
-        projectId INT
+        CONSTRAINT fk_dev_team_lead FOREIGN KEY (assignedTeamLead) REFERENCES team_lead(teamLeadId) ON DELETE SET NULL
+      );
+    `);
+
+    // Project table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS project (
+        projectId SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        duration VARCHAR(100),
+        developerName VARCHAR(255),
+        developerId INT,
+        status VARCHAR(50) DEFAULT 'Pending',
+        review TEXT,
+        progress INT CHECK (progress >= 0 AND progress <= 100),
+        CONSTRAINT fk_project_developer FOREIGN KEY (developerId) REFERENCES developer(developerId) ON DELETE SET NULL
       );
     `);
 
@@ -82,7 +81,8 @@ export async function initDb({ drop = false } = {}) {
         markedCompleteDate DATE,
         projectId INT NOT NULL,
         notes TEXT,
-        commitLink VARCHAR(255)
+        commitLink VARCHAR(255),
+        CONSTRAINT fk_module_project FOREIGN KEY (projectId) REFERENCES project(projectId) ON DELETE CASCADE
       );
     `);
 
@@ -96,35 +96,9 @@ export async function initDb({ drop = false } = {}) {
         paymentStatus VARCHAR(50) DEFAULT 'Pending',
         amount NUMERIC(12,2) DEFAULT 0, -- actual amount processed/paid
         moduleCost NUMERIC(12,2) DEFAULT 0, -- snapshot from module.cost
-        notes TEXT
+        notes TEXT,
+        CONSTRAINT fk_finance_module FOREIGN KEY (moduleId) REFERENCES module(moduleId) ON DELETE CASCADE
       );
-    `);
-
-    // Add Foreign Key Constraints after all tables are created
-    await client.query(`
-        ALTER TABLE project
-        ADD CONSTRAINT fk_project_developer FOREIGN KEY (developerId) REFERENCES developer(developerId) ON DELETE SET NULL;
-    `);
-
-    await client.query(`
-        ALTER TABLE developer
-        ADD CONSTRAINT fk_dev_team_lead FOREIGN KEY (assignedTeamLead) REFERENCES team_lead(teamLeadId) ON DELETE SET NULL,
-        ADD CONSTRAINT fk_dev_project FOREIGN KEY (projectId) REFERENCES project(projectId) ON DELETE SET NULL;
-    `);
-
-    await client.query(`
-        ALTER TABLE team_lead
-        ADD CONSTRAINT fk_team_lead_dev FOREIGN KEY (developerId) REFERENCES developer(developerId) ON DELETE CASCADE;
-    `);
-    
-    await client.query(`
-        ALTER TABLE module
-        ADD CONSTRAINT fk_module_project FOREIGN KEY (projectId) REFERENCES project(projectId) ON DELETE CASCADE;
-    `);
-    
-    await client.query(`
-        ALTER TABLE finance
-        ADD CONSTRAINT fk_finance_module FOREIGN KEY (moduleId) REFERENCES module(moduleId) ON DELETE CASCADE;
     `);
 
     // Ensure index exists on email on reg_users table for searching.
