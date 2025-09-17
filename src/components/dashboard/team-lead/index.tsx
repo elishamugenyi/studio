@@ -12,7 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import DashboardPage from '../dashboard-page';
 
 const navItems = [
-  { href: '#', icon: UserPlus, label: 'Request For Developer' },
+  { href: '/dashboard/request-developer', icon: UserPlus, label: 'Request For Developer' },
   { href: '#', icon: FileText, label: 'Reports' },
   { href: '#', icon: GanttChartSquare, label: 'Project Progress' },
 ];
@@ -27,8 +27,16 @@ export default function TeamLeadDashboard() {
   return (
     <DashboardPage navItems={navItems}>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
-        <div className="grid auto-rows-max items-start gap-4 md:gap-8">
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+        <div className="grid auto-rows-max items-start gap-4 md:gap-8 lg:col-span-2">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold font-headline">
+                        Team Lead Dashboard
+                    </h1>
+                    <p className="text-muted-foreground">Your team's overview and performance.</p>
+                </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
             <OverviewStats
               title="Team Members"
               value={teamMembers.length.toString()}
