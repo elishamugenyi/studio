@@ -13,7 +13,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -75,96 +74,94 @@ export default function RequestDeveloperPage() {
   };
 
   return (
-    <div className="flex justify-center items-start p-4 md:p-6 min-h-screen">
-      <Card className="w-full max-w-2xl bg-card">
-        <CardHeader>
-          <CardTitle className="font-headline text-2xl">Request a Developer</CardTitle>
-          <CardDescription>Fill out the form below to request a developer for a new project.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                    control={form.control}
-                    name="projectName"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-primary font-semibold">Project Name</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g., Project Phoenix" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-primary font-semibold">Description</FormLabel>
-                            <FormControl>
-                                <Textarea
-                                placeholder="Provide a detailed description of the project, its goals, and requirements."
-                                className="min-h-[120px]"
-                                {...field}
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="duration"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-primary font-semibold">Estimated Duration</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g., 3 months" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                Provide an estimate like "2 weeks", "3 months", or "6 sprints".
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="developerId"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-primary font-semibold">Assign Developer</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a developer from the list" />
-                                </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                {developers.map((dev) => (
-                                    <SelectItem key={dev.id} value={dev.id}>
-                                    {dev.name}
-                                    </SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+    <Card className="w-full max-w-4xl bg-card">
+      <CardHeader>
+        <CardTitle className="font-headline text-2xl">Request a Developer</CardTitle>
+        <CardDescription>Fill out the form below to request a developer for a new project.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                  control={form.control}
+                  name="projectName"
+                  render={({ field }) => (
+                      <FormItem>
+                          <FormLabel className="text-primary font-semibold">Project Name</FormLabel>
+                          <FormControl>
+                              <Input placeholder="e.g., Project Phoenix" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                      </FormItem>
+                  )}
+              />
+              <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                      <FormItem>
+                          <FormLabel className="text-primary font-semibold">Description</FormLabel>
+                          <FormControl>
+                              <Textarea
+                              placeholder="Provide a detailed description of the project, its goals, and requirements."
+                              className="min-h-[120px]"
+                              {...field}
+                              />
+                          </FormControl>
+                          <FormMessage />
+                      </FormItem>
+                  )}
+              />
+              <FormField
+                  control={form.control}
+                  name="duration"
+                  render={({ field }) => (
+                      <FormItem>
+                          <FormLabel className="text-primary font-semibold">Estimated Duration</FormLabel>
+                          <FormControl>
+                              <Input placeholder="e.g., 3 months" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                              Provide an estimate like "2 weeks", "3 months", or "6 sprints".
+                          </FormDescription>
+                          <FormMessage />
+                      </FormItem>
+                  )}
+              />
+              <FormField
+                  control={form.control}
+                  name="developerId"
+                  render={({ field }) => (
+                      <FormItem>
+                          <FormLabel className="text-primary font-semibold">Assign Developer</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                              <SelectTrigger>
+                                  <SelectValue placeholder="Select a developer from the list" />
+                              </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                              {developers.map((dev) => (
+                                  <SelectItem key={dev.id} value={dev.id}>
+                                  {dev.name}
+                                  </SelectItem>
+                              ))}
+                              </SelectContent>
+                          </Select>
+                          <FormMessage />
+                      </FormItem>
+                  )}
+              />
 
-              <div className="flex justify-end pt-4">
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  <Send className="mr-2" />
-                  Submit Request
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </div>
+            <div className="flex justify-end pt-4">
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                <Send className="mr-2" />
+                Submit Request
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   );
 }
