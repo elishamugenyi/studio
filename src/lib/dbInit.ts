@@ -1,3 +1,4 @@
+
 import { db } from "@/lib/db";
 
 // Initialize and manage database schema
@@ -7,11 +8,16 @@ export async function initDb({ drop = false } = {}) {
     if (drop) {
       console.log("⚠️ Dropping existing tables...");
       await client.query(`
+        DROP TABLE IF EXISTS finance CASCADE;
+        DROP TABLE IF EXISTS module CASCADE;
+        DROP TABLE IF EXISTS developer CASCADE;
+        DROP TABLE IF EXISTS team_lead CASCADE;
+        DROP TABLE IF EXISTS project CASCADE;
         DROP TABLE IF EXISTS reg_users CASCADE;
       `);
     }
 
-    // Create table if it doesn’t exist
+    // Create reg-users table if it doesn’t exist
     await client.query(`
       CREATE TABLE IF NOT EXISTS reg_users (
         regID SERIAL PRIMARY KEY,
@@ -23,7 +29,105 @@ export async function initDb({ drop = false } = {}) {
       );
     `);
 
-    // Ensure index exists on email
+    // Project table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS project (
+        projectId SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        duration VARCHAR(100),
+        developerName VARCHAR(255),
+        developerId INT,
+        status VARCHAR(50) DEFAULT 'Pending',
+        review TEXT,
+        progress INT DEFAULT 0
+      );
+    `);
+    
+    // Team Lead table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS team_lead (
+        teamLeadId SERIAL PRIMARY KEY,
+        firstName VARCHAR(255) NOT NULL,
+        lastName VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        developerId INT UNIQUE
+      );
+    `);
+
+    // Developer table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS developer (
+        developerId SERIAL PRIMARY KEY,
+        firstName VARCHAR(255) NOT NULL,
+        lastName VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        expertise VARCHAR(255),
+        department VARCHAR(255),
+        assignedTeamLead INT,
+        projectId INT
+      );
+    `);
+
+    // Module table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS module (
+        moduleId SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        startDate DATE,
+        endDate DATE,
+        cost NUMERIC(12,2) DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'Pending',
+        markedCompleteDate DATE,
+        projectId INT NOT NULL,
+        notes TEXT,
+        commitLink VARCHAR(255)
+      );
+    `);
+
+    // Finance table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS finance (
+        financeId SERIAL PRIMARY KEY,
+        moduleId INT NOT NULL,
+        processedBy VARCHAR(255),
+        processedDate DATE DEFAULT CURRENT_DATE,
+        paymentStatus VARCHAR(50) DEFAULT 'Pending',
+        amount NUMERIC(12,2) DEFAULT 0, -- actual amount processed/paid
+        moduleCost NUMERIC(12,2) DEFAULT 0, -- snapshot from module.cost
+        notes TEXT
+      );
+    `);
+
+    // Add Foreign Key Constraints after all tables are created
+    await client.query(`
+        ALTER TABLE project
+        ADD CONSTRAINT fk_project_developer FOREIGN KEY (developerId) REFERENCES developer(developerId) ON DELETE SET NULL;
+    `);
+
+    await client.query(`
+        ALTER TABLE developer
+        ADD CONSTRAINT fk_dev_team_lead FOREIGN KEY (assignedTeamLead) REFERENCES team_lead(teamLeadId) ON DELETE SET NULL,
+        ADD CONSTRAINT fk_dev_project FOREIGN KEY (projectId) REFERENCES project(projectId) ON DELETE SET NULL;
+    `);
+
+    await client.query(`
+        ALTER TABLE team_lead
+        ADD CONSTRAINT fk_team_lead_dev FOREIGN KEY (developerId) REFERENCES developer(developerId) ON DELETE CASCADE;
+    `);
+    
+    await client.query(`
+        ALTER TABLE module
+        ADD CONSTRAINT fk_module_project FOREIGN KEY (projectId) REFERENCES project(projectId) ON DELETE CASCADE;
+    `);
+    
+    await client.query(`
+        ALTER TABLE finance
+        ADD CONSTRAINT fk_finance_module FOREIGN KEY (moduleId) REFERENCES module(moduleId) ON DELETE CASCADE;
+    `);
+
+    // Ensure index exists on email on reg_users table for searching.
     const indexResult = await client.query(`
         SELECT 1 FROM pg_indexes 
         WHERE tablename = 'reg_users' 
@@ -31,9 +135,63 @@ export async function initDb({ drop = false } = {}) {
     `);
 
     if (indexResult.rowCount === 0) {
-        console.log("Creating index on email column for reg_users table.");
-        await client.query(`CREATE INDEX idx_reg_users_email ON reg_users (email);`);
+      console.log("Creating index on email column for reg_users table.");
+      await client.query(`CREATE INDEX idx_reg_users_email ON reg_users (email);`);
     }
+
+    // ---------------------------
+    // Indexes for performance
+    // ---------------------------
+
+    // developer
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_developer_email ON developer (email);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_developer_project ON developer (projectId);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_developer_teamlead ON developer (assignedTeamLead);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_developer_teamlead_project ON developer (assignedTeamLead, projectId);`);
+
+    // team_lead
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_teamlead_email ON team_lead (email);`);
+
+    // project
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_project_status ON project (status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_project_developer ON project (developerId);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_project_status_progress ON project (status, progress);`);
+
+    // module
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_module_status ON module (status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_module_project ON module (projectId);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_module_project_status ON module (projectId, status);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_module_project_dates ON module (projectId, startDate, endDate);`);
+
+    // finance
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_finance_status ON finance (paymentStatus);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_finance_module ON finance (moduleId);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_finance_module_status ON finance (moduleId, paymentStatus);`);
+
+    // ---------------------------
+    // Trigger: Auto insert into finance when module completed
+    // ---------------------------
+    await client.query(`
+      CREATE OR REPLACE FUNCTION create_finance_record()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        -- Only insert if status changes to 'Complete'
+        IF NEW.status = 'Complete' AND (OLD.status IS DISTINCT FROM NEW.status) THEN
+          INSERT INTO finance (moduleId, moduleCost, notes)
+          VALUES (NEW.moduleId, NEW.cost, 'Auto-created on module completion');
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    await client.query(`
+      DROP TRIGGER IF EXISTS trg_module_complete_finance ON module;
+      CREATE TRIGGER trg_module_complete_finance
+      AFTER UPDATE ON module
+      FOR EACH ROW
+      EXECUTE FUNCTION create_finance_record();
+    `);
 
     console.log("✅ Database initialized");
     return { success: true, message: "Database initialized successfully." };
