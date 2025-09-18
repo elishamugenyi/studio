@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
+import { rateLimiter } from '@/lib/rate-limiter';
 
 export async function POST(request: NextRequest) {
     try {
@@ -12,25 +13,37 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
         }
 
+        // Rate Limiter Check
+        const { allowed, retryAfter } = rateLimiter.check(email);
+        if (!allowed) {
+            return NextResponse.json({ error: `Too many failed attempts. Please try again in ${retryAfter} seconds.` }, { status: 429 });
+        }
+
         const client = await db.connect();
         const result = await client.query('SELECT * FROM reg_users WHERE email = $1', [email]);
         client.release();
 
         if (result.rows.length === 0) {
+            rateLimiter.consume(email);
             return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
         }
 
         const user = result.rows[0];
 
         if (!user.password) {
+            rateLimiter.consume(email);
             return NextResponse.json({ error: 'Account not fully set up. Please complete sign-up.' }, { status: 401 });
         }
         
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
+            rateLimiter.consume(email);
             return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
         }
+
+        // On successful login, reset the rate limiter
+        rateLimiter.reset(email);
 
         const userPayload = {
             id: user.regid,
