@@ -6,6 +6,7 @@ import CeoDashboard from '@/components/dashboard/ceo';
 import DeveloperDashboard from '@/components/dashboard/developer';
 import TeamLeadDashboard from '@/components/dashboard/team-lead';
 import FinanceDashboard from '@/components/dashboard/finance';
+import AdminDashboard from '@/components/dashboard/admin';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -46,6 +47,8 @@ export default function Dashboard() {
     switch (user.role) {
       case 'CEO':
         return <CeoDashboard />;
+      case 'Admin':
+        return <AdminDashboard />;
       case 'Developer':
         return <DeveloperDashboard />;
       case 'Team Lead':
@@ -79,7 +82,7 @@ export default function Dashboard() {
                 </h1>
                 <p className="text-muted-foreground">Here's your overview for today.</p>
             </div>
-            <DashboardSuggestions role={user.role} />
+            { user.role !== 'Admin' && <DashboardSuggestions role={user.role} /> }
         </div>
         {renderDashboard()}
     </>

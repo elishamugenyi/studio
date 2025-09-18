@@ -5,7 +5,7 @@ import { Users } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
-export type UserRole = 'CEO' | 'Team Lead' | 'Developer' | 'Finance' | 'Planner';
+export type UserRole = 'CEO' | 'Team Lead' | 'Developer' | 'Finance' | 'Planner' | 'Admin';
 
 export interface User {
   name: string;

@@ -19,6 +19,8 @@ import {
   Blocks,
   CreditCard,
   Trophy,
+  Users,
+  UserCog,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -49,6 +51,9 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
   ],
   'Finance': [], // Add finance links here if needed
   'Planner': [], // Add planner links here if needed
+  'Admin': [
+      { href: '/dashboard/admin', icon: UserCog, label: 'User Management'},
+  ]
 };
 
 export default function AppSidebar({ isMobile = false }: { isMobile?: boolean }) {
