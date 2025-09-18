@@ -49,8 +49,8 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { href: '/dashboard/payments', icon: CreditCard, label: 'Payments' },
     { href: '/dashboard/achievements', icon: Trophy, label: 'Achievements' },
   ],
-  'Finance': [], // Add finance links here if needed
-  'Planner': [], // Add planner links here if needed
+  'Finance': [],
+  'Planner': [],
   'Admin': [
       { href: '/dashboard/admin', icon: UserCog, label: 'User Management'},
   ]
@@ -60,7 +60,7 @@ export default function AppSidebar({ isMobile = false }: { isMobile?: boolean })
   const pathname = usePathname();
   const { user } = useUser();
 
-  const navItems = user ? roleNavItems[user.role] : [];
+  const navItems = user ? roleNavItems[user.role] || [] : [];
   
   const Wrapper = isMobile ? 'div' : 'aside';
   const wrapperClass = isMobile
