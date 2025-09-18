@@ -1,3 +1,4 @@
+
 //this is the route to handle project creation, update, view
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
@@ -7,7 +8,7 @@ import { cookies } from 'next/headers';
 // Helper function to verify JWT and get user data
 async function verifyAuth(request: NextRequest) {
     const cookieStore = cookies();
-    const tokenCookie = cookieStore.get('authToken');
+    const tokenCookie = await(request.cookies.get('authToken'));
 
     if (!tokenCookie) {
         return { authenticated: false, error: 'Not authenticated', status: 401 };
@@ -34,24 +35,33 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Forbidden: You do not have permission to create projects.' }, { status: 403 });
     }
 
+    const client = await db.connect();
     try {
-        const { name, description, duration, developerId, developerName } = await request.json();
+        const { name, description, duration, developerName } = await request.json();
 
-        if (!name || !description || !duration || !developerId) {
+        if (!name || !description || !duration || !developerName) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        const client = await db.connect();
+        // Get developerId from the developer table based on developerName
+        const developerResult = await client.query('SELECT developerId FROM developer WHERE firstName || \' \' || lastName = $1', [developerName]);
+        
+        if (developerResult.rows.length === 0) {
+            return NextResponse.json({ error: 'Developer not found' }, { status: 404 });
+        }
+        const developerId = developerResult.rows[0].developerid;
+
         const result = await client.query(
-            'INSERT INTO project (name, description, duration, developerId, developerName, status, progress) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-            [name, description, duration, parseInt(developerId), developerName, 'Pending', 0]
+            'INSERT INTO project (name, description, duration, developerId, developerName, status, review, progress) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [name, description, duration, developerId, developerName, 'Pending', '', 0]
         );
-        client.release();
 
         return NextResponse.json({ project: result.rows[0] }, { status: 201 });
     } catch (error) {
         console.error('Project creation error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    } finally {
+        client.release();
     }
 }
 
