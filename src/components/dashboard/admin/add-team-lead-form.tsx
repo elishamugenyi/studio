@@ -35,13 +35,32 @@ export default function AddTeamLeadForm() {
   });
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
-    // API call to be implemented later
-    console.log(data);
-    toast({
-      title: 'Team Lead Added (Mock)!',
-      description: `${data.firstName} ${data.lastName} has been added.`,
-    });
-    form.reset();
+    try {
+      const response = await fetch('/api/add_team_lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add Team Lead.');
+      }
+
+      toast({
+        title: 'Team Lead Added Successfully!',
+        description: `${data.firstName} ${data.lastName} has been added.`,
+      });
+      form.reset();
+
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: 'Error Adding Team Lead',
+        description: error.message || 'An unexpected error occurred.',
+      });
+    }
   };
 
   return (
