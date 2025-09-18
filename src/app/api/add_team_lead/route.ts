@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 // Helper function to verify JWT and check for Admin role
 async function verifyAdmin(request: NextRequest) {
     const cookieStore = cookies();
-    const tokenCookie = cookieStore.get('authToken');
+    const tokenCookie = await(request.cookies.get('authToken'));
 
     if (!tokenCookie) {
         return { authenticated: false, authorized: false, error: 'Not authenticated', status: 401 };
