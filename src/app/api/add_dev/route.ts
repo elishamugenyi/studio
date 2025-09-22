@@ -115,10 +115,29 @@ export async function PUT(request: NextRequest) {
     }
 }
 
+// Helper function to verify JWT
+async function verifyAuth(request: NextRequest) {
+    const cookieStore = cookies();
+    const tokenCookie = await(request.cookies.get('authToken'));
+
+    if (!tokenCookie) {
+        return { authenticated: false, error: 'Not authenticated', status: 401 };
+    }
+
+    try {
+        const token = tokenCookie.value;
+        jwt.verify(token, process.env.JWT_SECRET!);
+        return { authenticated: true, status: 200 };
+    } catch (error) {
+        return { authenticated: false, error: 'Session expired or invalid', status: 401 };
+    }
+}
+
+
 // GET: Fetch all Developers
 export async function GET(request: NextRequest) {
-    const auth = await verifyAdmin(request);
-    if (!auth.authorized) {
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 

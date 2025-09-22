@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Send } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 import {
     Form,
     FormControl,
@@ -32,45 +32,88 @@ import {
     FormLabel,
     FormMessage,
 } from "@/components/ui/form";
+import { useEffect, useState } from 'react';
 
 
-// Mock data for developers
-const developers = [
-    { id: '1', name: 'Mike Chen' },
-    { id: '2', name: 'Laura Smith' },
-    { id: '3', name: 'David Lee' },
-    { id: '4', name: 'Sarah Jones' },
-    { id: '5', name: 'Chris Green' },
-];
+interface Developer {
+    developerid: number;
+    firstname: string;
+    lastname: string;
+}
 
 const formSchema = z.object({
-  projectName: z.string().min(3, { message: "Project name must be at least 3 characters." }),
+  name: z.string().min(3, { message: "Project name must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description must be at least 10 characters." }),
   duration: z.string().min(1, { message: "Duration is required." }),
-  developerId: z.string({ required_error: "Please select a developer." }),
+  developerName: z.string({ required_error: "Please select a developer." }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 export default function RequestDeveloperPage() {
   const { toast } = useToast();
+  const [developers, setDevelopers] = useState<Developer[]>([]);
+  const [isLoadingDevs, setIsLoadingDevs] = useState(true);
+
+  useEffect(() => {
+    const fetchDevelopers = async () => {
+        try {
+            const response = await fetch('/api/add_dev');
+            if (!response.ok) {
+                throw new Error('Failed to fetch developers');
+            }
+            const data = await response.json();
+            setDevelopers(data.developers || []);
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: error.message || 'Could not load developers.',
+            });
+        } finally {
+            setIsLoadingDevs(false);
+        }
+    };
+    fetchDevelopers();
+  }, [toast]);
+
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-        projectName: "",
+        name: "",
         description: "",
         duration: "",
     }
   });
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
-    // In a real app, you'd send this data to your API
-    console.log(data);
-    toast({
-      title: 'Request Submitted!',
-      description: `Your request for project "${data.projectName}" has been sent for approval.`,
-    });
-    form.reset();
+    try {
+        const response = await fetch('/api/request_submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to submit request.');
+        }
+        
+        toast({
+            title: 'Request Submitted!',
+            description: `Your request for project "${data.name}" has been sent for approval.`,
+        });
+        form.reset();
+
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: 'Submission Failed',
+            description: error.message,
+        });
+    }
   };
 
   return (
@@ -84,7 +127,7 @@ export default function RequestDeveloperPage() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                   control={form.control}
-                  name="projectName"
+                  name="name"
                   render={({ field }) => (
                       <FormItem>
                           <FormLabel className="text-primary font-semibold">Project Name</FormLabel>
@@ -130,20 +173,20 @@ export default function RequestDeveloperPage() {
               />
               <FormField
                   control={form.control}
-                  name="developerId"
+                  name="developerName"
                   render={({ field }) => (
                       <FormItem>
                           <FormLabel className="text-primary font-semibold">Assign Developer</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingDevs || developers.length === 0}>
                               <FormControl>
                               <SelectTrigger>
-                                  <SelectValue placeholder="Select a developer from the list" />
+                                  <SelectValue placeholder={isLoadingDevs ? "Loading developers..." : "Select a developer"} />
                               </SelectTrigger>
                               </FormControl>
                               <SelectContent>
                               {developers.map((dev) => (
-                                  <SelectItem key={dev.id} value={dev.id}>
-                                  {dev.name}
+                                  <SelectItem key={dev.developerid} value={`${dev.firstname} ${dev.lastname}`}>
+                                    {dev.firstname} {dev.lastname}
                                   </SelectItem>
                               ))}
                               </SelectContent>
@@ -154,8 +197,8 @@ export default function RequestDeveloperPage() {
               />
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                <Send className="mr-2" />
+              <Button type="submit" disabled={form.formState.isSubmitting || isLoadingDevs}>
+                {form.formState.isSubmitting ? <Loader2 className="mr-2 animate-spin" /> : <Send className="mr-2" />}
                 Submit Request
               </Button>
             </div>
