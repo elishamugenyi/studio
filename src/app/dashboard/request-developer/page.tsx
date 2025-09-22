@@ -39,6 +39,7 @@ interface Developer {
     developerid: number;
     firstname: string;
     lastname: string;
+    email: string;
 }
 
 const formSchema = z.object({
@@ -89,10 +90,16 @@ export default function RequestDeveloperPage() {
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     try {
+        const developerNameOnly = data.developerName.split(' - ')[0];
+        const submissionData = {
+          ...data,
+          developerName: developerNameOnly,
+        };
+
         const response = await fetch('/api/request_submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
+            body: JSON.stringify(submissionData),
         });
 
         const result = await response.json();
@@ -185,8 +192,8 @@ export default function RequestDeveloperPage() {
                               </FormControl>
                               <SelectContent>
                               {developers.map((dev) => (
-                                  <SelectItem key={dev.developerid} value={`${dev.firstname} ${dev.lastname}`}>
-                                    {dev.firstname} {dev.lastname}
+                                  <SelectItem key={dev.developerid} value={`${dev.firstname} ${dev.lastname} - ${dev.email}`}>
+                                    {dev.firstname} {dev.lastname} - <span className="text-muted-foreground">{dev.email}</span>
                                   </SelectItem>
                               ))}
                               </SelectContent>

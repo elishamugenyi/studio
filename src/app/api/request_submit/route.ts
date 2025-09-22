@@ -1,4 +1,5 @@
 
+
 //this is the route to handle project creation, update, view
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
@@ -42,9 +43,13 @@ export async function POST(request: NextRequest) {
         if (!name || !description || !duration || !developerName) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
+        
+        // The developerName from the frontend might be in 'FirstName LastName - email@example.com' format
+        // We only need the name part for the query.
+        const nameOnly = developerName.split(' - ')[0];
 
         // Get developerId from the developer table based on developerName
-        const developerResult = await client.query('SELECT developerId FROM developer WHERE firstName || \' \' || lastName = $1', [developerName]);
+        const developerResult = await client.query('SELECT developerId FROM developer WHERE firstName || \' \' || lastName = $1', [nameOnly]);
         
         if (developerResult.rows.length === 0) {
             return NextResponse.json({ error: 'Developer not found' }, { status: 404 });
@@ -53,7 +58,7 @@ export async function POST(request: NextRequest) {
 
         const result = await client.query(
             'INSERT INTO project (name, description, duration, developerId, developerName, status, review, progress) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [name, description, duration, developerId, developerName, 'Pending', '', 0]
+            [name, description, duration, developerId, nameOnly, 'Pending', '', 0]
         );
 
         return NextResponse.json({ project: result.rows[0] }, { status: 201 });
