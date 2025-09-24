@@ -44,21 +44,28 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
         
-        // The developerName from the frontend might be in 'FirstName LastName - email@example.com' format
-        // We only need the name part for the query.
-        const nameOnly = developerName.split(' - ')[0];
+        // The developerName from the frontend is in 'FirstName LastName - email@example.com' format.
+        const parts = developerName.split(' - ');
+        const nameOnly = parts[0];
+        const email = parts[1];
 
-        // Get developerId from the developer table based on developerName
-        const developerResult = await client.query('SELECT developerId FROM developer WHERE firstName || \' \' || lastName = $1', [nameOnly]);
+        if (!email) {
+             return NextResponse.json({ error: 'Invalid developer format. Email is missing.' }, { status: 400 });
+        }
+
+        // Get developerId from the developer table based on the unique email
+        const developerResult = await client.query('SELECT developerId, firstName, lastName FROM developer WHERE email = $1', [email]);
         
         if (developerResult.rows.length === 0) {
             return NextResponse.json({ error: 'Developer not found' }, { status: 404 });
         }
         const developerId = developerResult.rows[0].developerid;
+        // Use the exact name from the database to ensure consistency
+        const actualDeveloperName = `${developerResult.rows[0].firstname} ${developerResult.rows[0].lastname}`;
 
         const result = await client.query(
             'INSERT INTO project (name, description, duration, developerId, developerName, status, review, progress) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [name, description, duration, developerId, nameOnly, 'Pending', '', 0]
+            [name, description, duration, developerId, actualDeveloperName, 'Pending', '', 0]
         );
 
         return NextResponse.json({ project: result.rows[0] }, { status: 201 });
