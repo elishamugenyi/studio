@@ -90,16 +90,10 @@ export default function RequestDeveloperPage() {
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     try {
-        const developerNameOnly = data.developerName.split(' - ')[0];
-        const submissionData = {
-          ...data,
-          developerName: developerNameOnly,
-        };
-
         const response = await fetch('/api/request_submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(submissionData),
+            body: JSON.stringify(data),
         });
 
         const result = await response.json();
