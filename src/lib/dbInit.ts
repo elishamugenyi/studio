@@ -77,7 +77,6 @@ export async function initDb({ drop = false } = {}) {
         startDate DATE,
         endDate DATE,
         cost NUMERIC(12,2) DEFAULT 0,
-        currency VARCHAR(3) DEFAULT 'USD',
         status VARCHAR(50) DEFAULT 'Pending',
         markedCompleteDate DATE,
         projectId INT NOT NULL,
@@ -85,6 +84,18 @@ export async function initDb({ drop = false } = {}) {
         commitLink VARCHAR(255),
         CONSTRAINT fk_module_project FOREIGN KEY (projectId) REFERENCES project(projectId) ON DELETE CASCADE
       );
+    `);
+
+    //add currency column to module table
+    await client.query(`
+      DO $$
+      BEGIN
+      --ADD CURRENCY COLUMN IF MISSING
+      IF NOT EXISTS 
+      (SELECT 1 FROM information_schema.columns WHERE table_name = 'module' AND column_name = 'currency') THEN
+        ALTER TABLE module ADD COLUMN currency VARCHAR(3) DEFAULT 'UGX';
+      END IF;
+      END $$;
     `);
 
     // Finance table
@@ -100,6 +111,18 @@ export async function initDb({ drop = false } = {}) {
         notes TEXT,
         CONSTRAINT fk_finance_module FOREIGN KEY (moduleId) REFERENCES module(moduleId) ON DELETE CASCADE
       );
+    `);
+
+    //add currency column to finance table
+    await client.query(`
+      DO $$
+      BEGIN
+      --ADD CURRENCY COLUMN IF MISSING
+      IF NOT EXISTS 
+      (SELECT 1 FROM information_schema.columns WHERE table_name = 'finance' AND column_name = 'currency') THEN
+        ALTER TABLE finance ADD COLUMN currency VARCHAR(3) DEFAULT 'UGX';
+      END IF;
+      END $$;
     `);
 
     // Ensure index exists on email on reg_users table for searching.
@@ -146,8 +169,8 @@ export async function initDb({ drop = false } = {}) {
       BEGIN
         -- Only insert if status changes to 'Complete'
         IF NEW.status = 'Complete' AND (OLD.status IS DISTINCT FROM NEW.status) THEN
-          INSERT INTO finance (moduleId, moduleCost, notes)
-          VALUES (NEW.moduleId, NEW.cost, 'Auto-created on module completion');
+          INSERT INTO finance (moduleId, moduleCost, currency, notes)
+          VALUES (NEW.moduleId, NEW.cost, NEW.currency, 'Auto-created on module completion');
         END IF;
         RETURN NEW;
       END;
@@ -162,7 +185,7 @@ export async function initDb({ drop = false } = {}) {
       EXECUTE FUNCTION create_finance_record();
     `);
 
-    console.log("✅ Database initialized");
+    //console.log("✅ Database initialized");
     return { success: true, message: "Database initialized successfully." };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown database error";
