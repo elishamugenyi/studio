@@ -31,7 +31,6 @@ export async function GET(request: NextRequest) {
 
     const client = await db.connect();
     try {
-        // This query joins project with developer and team_lead to get all necessary info
         const query = `
             SELECT
                 p.projectId,
@@ -41,6 +40,7 @@ export async function GET(request: NextRequest) {
                 p.status,
                 p.progress,
                 p.developerName,
+                d.email AS "developerEmail",
                 CONCAT(tl.firstName, ' ', tl.lastName) AS "teamLeadName"
             FROM
                 project p

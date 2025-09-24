@@ -37,6 +37,7 @@ interface Project {
   description: string;
   duration: string;
   developerName: string;
+  developerEmail: string;
   teamLeadName: string | null;
   status: string;
   progress: number;
@@ -78,15 +79,23 @@ export default function ApprovedProjectsPage() {
     fetchApprovedProjects();
   }, [toast]);
 
-  const uniqueDevelopers = useMemo(() => [...new Set(projects.map(p => p.developerName))], [projects]);
+  const uniqueDevelopers = useMemo(() => {
+    const developerMap = new Map<string, Project>();
+    projects.forEach(p => {
+        if (!developerMap.has(p.developerEmail)) {
+            developerMap.set(p.developerEmail, p);
+        }
+    });
+    return Array.from(developerMap.values());
+  }, [projects]);
+  
   const uniqueTeamLeads = useMemo(() => [...new Set(projects.map(p => p.teamLeadName).filter(Boolean))] as string[], [projects]);
   const uniqueStatuses = useMemo(() => [...new Set(projects.map(p => p.status))], [projects]);
-
 
   const filteredProjects = useMemo(() => {
     return projects.filter(project => {
       const nameMatch = project.projectName.toLowerCase().includes(nameFilter.toLowerCase());
-      const developerMatch = developerFilter === 'all' || project.developerName === developerFilter;
+      const developerMatch = developerFilter === 'all' || project.developerEmail === developerFilter;
       const teamLeadMatch = teamLeadFilter === 'all' || project.teamLeadName === teamLeadFilter;
       const statusMatch = statusFilter === 'all' || project.status === statusFilter;
       return nameMatch && developerMatch && teamLeadMatch && statusMatch;
@@ -130,7 +139,10 @@ export default function ApprovedProjectsPage() {
               <div className="font-medium">{project.projectName}</div>
               <div className="text-sm text-muted-foreground">{project.duration}</div>
             </TableCell>
-            <TableCell className="hidden md:table-cell">{project.developerName}</TableCell>
+            <TableCell className="hidden md:table-cell">
+                <div>{project.developerName}</div>
+                <div className="text-xs text-muted-foreground">{project.developerEmail}</div>
+            </TableCell>
             <TableCell className="hidden lg:table-cell">{project.teamLeadName || 'N/A'}</TableCell>
             <TableCell className="hidden sm:table-cell">
                 <Badge variant={project.status === 'Approved' ? 'default' : 'secondary'}>{project.status}</Badge>
@@ -169,12 +181,16 @@ export default function ApprovedProjectsPage() {
                 />
             </div>
             <Select value={developerFilter} onValueChange={setDeveloperFilter}>
-                <SelectTrigger className="w-full md:w-[180px]">
+                <SelectTrigger className="w-full md:w-[220px]">
                     <SelectValue placeholder="Filter by Developer" />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">All Developers</SelectItem>
-                    {uniqueDevelopers.map(dev => <SelectItem key={dev} value={dev}>{dev}</SelectItem>)}
+                    {uniqueDevelopers.map(dev => 
+                        <SelectItem key={dev.developerEmail} value={dev.developerEmail}>
+                            {dev.developerName} ({dev.developerEmail})
+                        </SelectItem>
+                    )}
                 </SelectContent>
             </Select>
             <Select value={teamLeadFilter} onValueChange={setTeamLeadFilter}>
