@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
 
     const client = await db.connect();
     try {
-        const result = await client.query('SELECT * FROM developer ORDER BY lastName, firstName');
+        const result = await client.query('SELECT developerid, firstname, lastname, email FROM developer ORDER BY lastName, firstName');
         return NextResponse.json({ developers: result.rows }, { status: 200 });
     } catch (error) {
         console.error('Get Developers error:', error);
