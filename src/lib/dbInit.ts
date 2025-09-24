@@ -77,6 +77,7 @@ export async function initDb({ drop = false } = {}) {
         startDate DATE,
         endDate DATE,
         cost NUMERIC(12,2) DEFAULT 0,
+        currency VARCHAR(3) DEFAULT 'USD',
         status VARCHAR(50) DEFAULT 'Pending',
         markedCompleteDate DATE,
         projectId INT NOT NULL,
@@ -119,9 +120,7 @@ export async function initDb({ drop = false } = {}) {
 
     // developer
     await client.query(`CREATE INDEX IF NOT EXISTS idx_developer_email ON developer (email);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_developer_project ON developer (projectId);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_developer_teamlead ON developer (assignedTeamLead);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_developer_teamlead_project ON developer (assignedTeamLead, projectId);`);
 
     // team_lead
     await client.query(`CREATE INDEX IF NOT EXISTS idx_teamlead_email ON team_lead (email);`);
@@ -129,18 +128,14 @@ export async function initDb({ drop = false } = {}) {
     // project
     await client.query(`CREATE INDEX IF NOT EXISTS idx_project_status ON project (status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_project_developer ON project (developerId);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_project_status_progress ON project (status, progress);`);
 
     // module
     await client.query(`CREATE INDEX IF NOT EXISTS idx_module_status ON module (status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_module_project ON module (projectId);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_module_project_status ON module (projectId, status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_module_project_dates ON module (projectId, startDate, endDate);`);
 
     // finance
     await client.query(`CREATE INDEX IF NOT EXISTS idx_finance_status ON finance (paymentStatus);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_finance_module ON finance (moduleId);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_finance_module_status ON finance (moduleId, paymentStatus);`);
 
     // ---------------------------
     // Trigger: Auto insert into finance when module completed

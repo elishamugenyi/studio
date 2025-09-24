@@ -36,16 +36,16 @@ export async function POST(request: NextRequest) {
 
     const client = await db.connect();
     try {
-        const { name, description, startDate, endDate, cost, projectId } = await request.json();
+        const { name, description, startDate, endDate, cost, currency, projectId } = await request.json();
 
-        if (!name || !description || !startDate || !endDate || cost === undefined || !projectId) {
+        if (!name || !description || !startDate || !endDate || cost === undefined || currency === undefined || !projectId) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
         const result = await client.query(
-            `INSERT INTO module (name, description, startDate, endDate, cost, projectId, status) 
-             VALUES ($1, $2, $3, $4, $5, $6, 'Pending') RETURNING *`,
-            [name, description, startDate, endDate, cost, projectId]
+            `INSERT INTO module (name, description, startDate, endDate, cost, currency, projectId, status) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pending') RETURNING *`,
+            [name, description, startDate, endDate, cost, currency, projectId]
         );
 
         return NextResponse.json({ module: result.rows[0] }, { status: 201 });

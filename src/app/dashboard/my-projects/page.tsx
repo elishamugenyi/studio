@@ -39,6 +39,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlusCircle, Loader2, FolderGit2, CheckCircle, Clock, Link, Trash2 } from 'lucide-react';
@@ -49,6 +56,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { Label } from '@/components/ui/label';
 
 interface Module {
   moduleid: number;
@@ -57,6 +65,7 @@ interface Module {
   startdate: string;
   enddate: string;
   cost: number;
+  currency: string;
   status: string;
   commitlink: string | null;
 }
@@ -80,6 +89,7 @@ const moduleSchema = z.object({
     (a) => parseFloat(z.string().parse(a)),
     z.number().positive("Cost must be a positive number.")
   ),
+  currency: z.string({ required_error: "Currency is required." }),
 });
 
 type ModuleFormValues = z.infer<typeof moduleSchema>;
@@ -95,6 +105,7 @@ function AddModuleForm({ projectId, onModuleAdded }: { projectId: number; onModu
       startDate: '',
       endDate: '',
       cost: 0,
+      currency: "USD",
     }
   });
 
@@ -158,13 +169,35 @@ function AddModuleForm({ projectId, onModuleAdded }: { projectId: number; onModu
                     </FormItem>
                 )} />
               </div>
-              <FormField control={form.control} name="cost" render={({ field }) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="cost" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cost ($)</FormLabel>
+                    <FormLabel>Cost</FormLabel>
                     <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
-              )} />
+                )} />
+                <FormField control={form.control} name="currency" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="USD">USD</SelectItem>
+                            <SelectItem value="UGX">UGX</SelectItem>
+                            <SelectItem value="GBP">GBP</SelectItem>
+                            <SelectItem value="EUR">EUR</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={form.formState.isSubmitting}>
@@ -309,8 +342,9 @@ export default function MyProjectsPage() {
                                             <div>
                                                 <p className="font-semibold">{module.name}</p>
                                                 <p className="text-sm text-muted-foreground">{module.description}</p>
-                                                <div className="text-xs text-muted-foreground mt-1">
-                                                    {format(new Date(module.startdate), 'MMM d, yyyy')} - {format(new Date(module.enddate), 'MMM d, yyyy')}
+                                                <div className="text-xs text-muted-foreground mt-1 space-x-4">
+                                                    <span>{format(new Date(module.startdate), 'MMM d, yyyy')} - {format(new Date(module.enddate), 'MMM d, yyyy')}</span>
+                                                    <span className="font-medium">{new Intl.NumberFormat('en-US', { style: 'currency', currency: module.currency }).format(module.cost)}</span>
                                                 </div>
                                                 {module.commitlink && (
                                                     <a href={module.commitlink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1">
