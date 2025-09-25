@@ -9,7 +9,7 @@ import { cookies } from 'next/headers';
 // Helper function to verify JWT and get user data
 async function verifyAuth(request: NextRequest) {
     const cookieStore = cookies();
-    const tokenCookie = await(request.cookies.get('authToken'));
+    const tokenCookie = request.cookies.get('authToken');
 
     if (!tokenCookie) {
         return { authenticated: false, error: 'Not authenticated', status: 401 };
@@ -45,9 +45,8 @@ export async function POST(request: NextRequest) {
         }
         
         // The developerName from the frontend is in 'FirstName LastName - email@example.com' format.
-        const parts = developerName.split(' - ');
-        const nameOnly = parts[0];
-        const email = parts[1];
+        const emailMatch = developerName.match(/ - (.+)/);
+        const email = emailMatch ? emailMatch[1] : null;
 
         if (!email) {
              return NextResponse.json({ error: 'Invalid developer format. Email is missing.' }, { status: 400 });
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
         const developerResult = await client.query('SELECT developerId, firstName, lastName FROM developer WHERE email = $1', [email]);
         
         if (developerResult.rows.length === 0) {
-            return NextResponse.json({ error: 'Developer not found' }, { status: 404 });
+            return NextResponse.json({ error: `Developer with email ${email} not found` }, { status: 404 });
         }
         const developerId = developerResult.rows[0].developerid;
         // Use the exact name from the database to ensure consistency

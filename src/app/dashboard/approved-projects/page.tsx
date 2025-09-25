@@ -134,7 +134,7 @@ export default function ApprovedProjectsPage() {
     return (
       <TableBody>
         {filteredProjects.map((project) => (
-          <TableRow key={project.projectId}>
+          <TableRow key={`${project.projectId}-${project.developerEmail}`}>
             <TableCell>
               <div className="font-medium">{project.projectName}</div>
               <div className="text-sm text-muted-foreground">{project.duration}</div>
