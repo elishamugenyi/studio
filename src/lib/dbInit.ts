@@ -38,7 +38,7 @@ export async function initDb({ drop = false } = {}) {
       );
     `);
 
-    // Developer table
+    // Developer table, projectId will be moved to this table
     await client.query(`
       CREATE TABLE IF NOT EXISTS developer (
         developerId SERIAL PRIMARY KEY,
@@ -51,7 +51,7 @@ export async function initDb({ drop = false } = {}) {
         CONSTRAINT fk_dev_team_lead FOREIGN KEY (assignedTeamLead) REFERENCES team_lead(teamLeadId) ON DELETE SET NULL
       );
     `);
-
+    
     // Project table
     await client.query(`
       CREATE TABLE IF NOT EXISTS project (
@@ -64,9 +64,12 @@ export async function initDb({ drop = false } = {}) {
         status VARCHAR(50) DEFAULT 'Pending',
         review TEXT,
         progress INT CHECK (progress >= 0 AND progress <= 100),
-        CONSTRAINT fk_project_developer FOREIGN KEY (developerId) REFERENCES developer(developerId) ON DELETE SET NULL
+        createdBy INT,
+        CONSTRAINT fk_project_developer FOREIGN KEY (developerId) REFERENCES developer(developerId) ON DELETE SET NULL,
+        CONSTRAINT fk_project_creator FOREIGN KEY (createdBy) REFERENCES reg_users(regID) ON DELETE SET NULL
       );
     `);
+
 
     // Module table
     await client.query(`
@@ -94,6 +97,31 @@ export async function initDb({ drop = false } = {}) {
       IF NOT EXISTS 
       (SELECT 1 FROM information_schema.columns WHERE table_name = 'module' AND column_name = 'currency') THEN
         ALTER TABLE module ADD COLUMN currency VARCHAR(3) DEFAULT 'UGX';
+      END IF;
+      END $$;
+    `);
+
+    //add createBy column to module table.
+    await client.query(`
+      DO $$
+      BEGIN
+      -- 1. ADD CreatedBy COLUMN IF MISSING
+      IF NOT EXISTS 
+      (SELECT 1 FROM information_schema.columns WHERE table_name = 'module' AND column_name = 'createdby') THEN
+        ALTER TABLE module ADD COLUMN createdBy INT;
+      END IF;
+
+      -- 2. Add constraint if missing
+      IF NOT EXISTS (
+        SELECT 1 
+        FROM pg_constraint 
+        WHERE conname = 'fk_module_createdby'
+      ) THEN
+        ALTER TABLE module 
+        ADD CONSTRAINT fk_module_createdby
+        FOREIGN KEY (createdBy) 
+        REFERENCES developer(developerId) 
+        ON DELETE SET NULL;
       END IF;
       END $$;
     `);
@@ -133,7 +161,7 @@ export async function initDb({ drop = false } = {}) {
     `);
 
     if (indexResult.rowCount === 0) {
-      console.log("Creating index on email column for reg_users table.");
+      //console.log("Creating index on email column for reg_users table.");
       await client.query(`CREATE INDEX idx_reg_users_email ON reg_users (email);`);
     }
 
@@ -151,10 +179,13 @@ export async function initDb({ drop = false } = {}) {
     // project
     await client.query(`CREATE INDEX IF NOT EXISTS idx_project_status ON project (status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_project_developer ON project (developerId);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_project_createdby ON project (createdBy);`);
+
 
     // module
     await client.query(`CREATE INDEX IF NOT EXISTS idx_module_status ON module (status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_module_project ON module (projectId);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_module_createdby ON module (createdBy);`);
 
     // finance
     await client.query(`CREATE INDEX IF NOT EXISTS idx_finance_status ON finance (paymentStatus);`);

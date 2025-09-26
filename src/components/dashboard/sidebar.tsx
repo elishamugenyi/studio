@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -21,6 +20,7 @@ import {
   Trophy,
   Users,
   UserCog,
+  FilePlus,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -40,6 +40,7 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
   ],
   'Team Lead': [
     { href: '/dashboard/request-developer', icon: UserPlus, label: 'Request For Developer' },
+    { href: '/dashboard/my-created-projects', icon: FilePlus, label: 'My Created Projects' },
     { href: '/dashboard/reports', icon: FileText, label: 'Reports' },
     { href: '/dashboard/project-progress', icon: GanttChartSquare, label: 'Project Progress' },
   ],

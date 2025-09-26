@@ -1,5 +1,3 @@
-
-
 //this is the route to handle project creation, update, view
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
@@ -61,10 +59,11 @@ export async function POST(request: NextRequest) {
         const developerId = developerResult.rows[0].developerid;
         // Use the exact name from the database to ensure consistency
         const actualDeveloperName = `${developerResult.rows[0].firstname} ${developerResult.rows[0].lastname}`;
+        const creatorId = auth.user.id; // Get creator's ID from JWT
 
         const result = await client.query(
-            'INSERT INTO project (name, description, duration, developerId, developerName, status, review, progress) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [name, description, duration, developerId, actualDeveloperName, 'Pending', '', 0]
+            'INSERT INTO project (name, description, duration, developerId, developerName, status, review, progress, createdBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+            [name, description, duration, developerId, actualDeveloperName, 'Pending', '', 0, creatorId]
         );
 
         return NextResponse.json({ project: result.rows[0] }, { status: 201 });
