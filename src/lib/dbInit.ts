@@ -2,8 +2,15 @@ import { db } from "@/lib/db";
 
 // Initialize and manage database schema
 export async function initDb({ drop = false } = {}) {
-  const client = await db.connect();
+  // Skip database initialization during build time if DATABASE_URL is not available
+  if (!process.env.DATABASE_URL) {
+    console.log("⚠️ DATABASE_URL not found, skipping database initialization (likely during build time)");
+    return { success: false, message: "Database URL not configured", error: "DATABASE_URL missing" };
+  }
+
+  let client;
   try {
+    client = await db.connect();
     if (drop) {
       console.log("⚠️ Dropping existing tables...");
       await client.query(`
@@ -298,6 +305,8 @@ export async function initDb({ drop = false } = {}) {
     console.error("❌ Database init error:", errorMessage);
     return { success: false, message: "Database initialization failed.", error: errorMessage };
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 }
