@@ -1,7 +1,6 @@
 //delete existing projects and modules for fres start
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-/*
 
 export async function DELETE(request: NextRequest){
     try
@@ -23,7 +22,8 @@ export async function DELETE(request: NextRequest){
         console.error('Project delete error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
-}*/
+}
+    /*
 // GET: View projects (all, by ID, or progress stats)
 export async function GET(request: NextRequest) {
     
@@ -78,4 +78,4 @@ export async function GET(request: NextRequest) {
         console.error('Get projects error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
-}
+}*/
