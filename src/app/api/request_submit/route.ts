@@ -1,4 +1,5 @@
 
+
 //this is the route to handle project creation, update, view
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
@@ -41,40 +42,52 @@ export async function POST(request: NextRequest) {
     if (!name || !description || !duration || !Array.isArray(developerIds) || developerIds.length === 0) {
       return NextResponse.json({ error: 'Missing required fields: name, description, duration, and at least one developerId are required.' }, { status: 400 });
     }
+    
+    await client.query('BEGIN');
 
-    // Since we are creating a project for each developer, we'll loop through the ids
     const createdProjects = [];
+    
+    for (const devId of developerIds) {
+        // Fetch developer details
+        const devResult = await client.query('SELECT * FROM developer WHERE developerId = $1', [devId]);
+        if (devResult.rows.length === 0) {
+            // If any developer is not found, rollback and throw an error.
+            await client.query('ROLLBACK');
+            return NextResponse.json({ error: `Developer with ID ${devId} not found.` }, { status: 404 });
+        }
+        
+        const createdBy = auth.user.id;
+        
+        // Create project
+        const projectResult = await client.query(
+            `INSERT INTO project (name, description, duration, status, review, progress, createdBy) 
+             VALUES ($1, $2, $3, 'Pending', '', 0, $4) RETURNING *`,
+            [name, description, duration, createdBy]
+        );
+        const project = projectResult.rows[0];
 
-    for (const developerId of developerIds) {
-      const createdBy = auth.user.id;
-      // Step 1: Create project
-      const projectResult = await client.query(
-        `INSERT INTO project (name, description, duration, status, review, progress, createdBy) 
-         VALUES ($1, $2, $3, 'Pending', '', 0, $4) RETURNING *`,
-        [name, description, duration, createdBy]
-      );
-      const project = projectResult.rows[0];
-
-      // Step 2: Assign the developer to the new project
-      await client.query(
-        `UPDATE developer SET projectId = $1 WHERE developerId = $2`,
-        [project.projectid, developerId]
-      );
+        // Assign the developer to the new project
+        await client.query(
+            `UPDATE developer SET projectId = $1 WHERE developerId = $2`,
+            [project.projectid, devId]
+        );
       
-      createdProjects.push(project);
+        createdProjects.push(project);
     }
     
-    // In this model, each developer gets a new project.
-    // We can return all projects that were created.
+    await client.query('COMMIT');
+
     return NextResponse.json({ projects: createdProjects }, { status: 201 });
 
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Project creation error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   } finally {
     client.release();
   }
 }
+
 
 /* ============ PUT: Update Project ============ */
 export async function PUT(request: NextRequest) {

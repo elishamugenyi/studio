@@ -53,10 +53,22 @@ export default function RequestDeveloperPage() {
   const { toast } = useToast();
   const [developers, setDevelopers] = useState<Developer[]>([]);
   const [isLoadingDevs, setIsLoadingDevs] = useState(true);
-  const [selectedDevIds, setSelectedDevIds] = useState<number[]>([]);
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      duration: "",
+      developerIds: [],
+    },
+  });
+
+  const selectedDevIds = form.watch('developerIds');
 
   useEffect(() => {
     const fetchDevelopers = async () => {
+      setIsLoadingDevs(true);
       try {
         const response = await fetch('/api/add_dev');
         if (!response.ok) throw new Error('Failed to fetch developers');
@@ -75,29 +87,17 @@ export default function RequestDeveloperPage() {
     fetchDevelopers();
   }, [toast]);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      duration: "",
-      developerIds: [],
-    },
-  });
-
   const handleAddDeveloper = (devIdStr: string) => {
     const devId = parseInt(devIdStr, 10);
     if (!selectedDevIds.includes(devId)) {
       const newSelected = [...selectedDevIds, devId];
-      setSelectedDevIds(newSelected);
-      form.setValue("developerIds", newSelected);
+      form.setValue("developerIds", newSelected, { shouldValidate: true });
     }
   };
 
   const handleRemoveDeveloper = (devId: number) => {
     const newSelected = selectedDevIds.filter(id => id !== devId);
-    setSelectedDevIds(newSelected);
-    form.setValue("developerIds", newSelected);
+    form.setValue("developerIds", newSelected, { shouldValidate: true });
   };
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
@@ -119,7 +119,6 @@ export default function RequestDeveloperPage() {
       });
 
       form.reset();
-      setSelectedDevIds([]);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -182,19 +181,19 @@ export default function RequestDeveloperPage() {
             <FormField
               control={form.control}
               name="developerIds"
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
                   <FormLabel>Assign Developer(s)</FormLabel>
-                  <Select onValueChange={handleAddDeveloper} disabled={isLoadingDevs || developers.length === 0}>
+                   <Select onValueChange={handleAddDeveloper} disabled={isLoadingDevs || developers.length === 0}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder={isLoadingDevs ? "Loading..." : "Select developers"} />
+                        <SelectValue placeholder={isLoadingDevs ? "Loading..." : "Select developers to add"} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {developers.map(dev => (
-                        <SelectItem key={dev.developerid} value={dev.developerid.toString()}>
-                          {dev.firstname} {dev.lastname} - {dev.email}
+                        <SelectItem key={dev.developerid} value={String(dev.developerid)} disabled={selectedDevIds.includes(dev.developerid)}>
+                          {dev.firstname} {dev.lastname} ({dev.email})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -221,7 +220,7 @@ export default function RequestDeveloperPage() {
 
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={form.formState.isSubmitting || isLoadingDevs}>
-                {form.formState.isSubmitting ? <Loader2 className="mr-2 animate-spin" /> : <Send className="mr-2" />}
+                {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                 Submit Request
               </Button>
             </div>
