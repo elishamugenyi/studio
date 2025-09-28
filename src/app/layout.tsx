@@ -14,7 +14,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   //Run DB initiliaser once on server
-  await initDb({ drop: false }) //set drop true for clean slate on development
+  await initDb({ drop: true }) //set drop true for clean slate on development
   // Database initialization is now handled by the /api/db/init route
   // await initDb({ drop: false }); 
 

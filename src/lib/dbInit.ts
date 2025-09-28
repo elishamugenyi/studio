@@ -7,7 +7,6 @@ export async function initDb({ drop = false } = {}) {
     if (drop) {
       console.log("⚠️ Dropping existing tables...");
       await client.query(`
-        DROP TABLE IF EXISTS reg_users CASCADE;
         DROP TABLE IF EXISTS finance CASCADE;
         DROP TABLE IF EXISTS module CASCADE;
         DROP TABLE IF EXISTS developer CASCADE;
@@ -37,7 +36,47 @@ export async function initDb({ drop = false } = {}) {
         email VARCHAR(255) UNIQUE NOT NULL
       );
     `);
-
+    
+    // Project table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS project (
+        projectId SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        duration VARCHAR(100),
+        status VARCHAR(50) DEFAULT 'Pending',
+        review TEXT,
+        progress INT CHECK (progress >= 0 AND progress <= 100)
+        -- added createdby column here(reference regID from reg_users)
+      );
+    `);
+    
+    // Ensure createdBy column + FK on project
+    await client.query(`
+      DO $$
+      BEGIN
+        -- 1. Add column if missing
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'project' AND column_name = 'createdby'
+        ) THEN
+          ALTER TABLE project ADD COLUMN createdBy INT;
+        END IF;
+      
+        -- 2. Drop constraint if it already exists (safety)
+        IF EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'fk_project_createdBy'
+        ) THEN
+          ALTER TABLE project DROP CONSTRAINT fk_project_createdBy;
+        END IF;
+      
+        -- 3. Re-add the FK constraint
+        ALTER TABLE project 
+          ADD CONSTRAINT fk_project_createdBy
+          FOREIGN KEY (createdBy) REFERENCES reg_users(regID) ON DELETE SET NULL;
+      END $$;
+    `);
+          
     // Developer table, projectId will be moved to this table
     await client.query(`
       CREATE TABLE IF NOT EXISTS developer (
@@ -48,28 +87,61 @@ export async function initDb({ drop = false } = {}) {
         expertise VARCHAR(255),
         department VARCHAR(255),
         assignedTeamLead INT,
+        --added projectId column here and ref it to project table
         CONSTRAINT fk_dev_team_lead FOREIGN KEY (assignedTeamLead) REFERENCES team_lead(teamLeadId) ON DELETE SET NULL
       );
     `);
-    
-    // Project table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS project (
-        projectId SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        description TEXT,
-        duration VARCHAR(100),
-        developerName VARCHAR(255),
-        developerId INT,
-        status VARCHAR(50) DEFAULT 'Pending',
-        review TEXT,
-        progress INT CHECK (progress >= 0 AND progress <= 100),
-        createdBy INT,
-        CONSTRAINT fk_project_developer FOREIGN KEY (developerId) REFERENCES developer(developerId) ON DELETE SET NULL,
-        CONSTRAINT fk_project_creator FOREIGN KEY (createdBy) REFERENCES reg_users(regID) ON DELETE SET NULL
-      );
-    `);
 
+    // Migrate project-developer relationship to one-to-many
+    await client.query(`
+      DO $$
+      BEGIN
+        -- 1. Add projectId to developer if missing
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'developer' AND column_name = 'projectid'
+        ) THEN
+          ALTER TABLE developer ADD COLUMN projectId INT;
+        END IF;
+
+        -- 2. Migrate data: copy project.developerId -> developer.projectId
+        -- Only run if project.developerId exists
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'project' AND column_name = 'developerid'
+        ) THEN
+          UPDATE developer d
+          SET projectId = p.projectId
+          FROM project p
+          WHERE p.developerId = d.developerId;
+        END IF;
+
+        -- 3. Drop developerId and developerName from project (no longer needed)
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'project' AND column_name = 'developerid'
+        ) THEN
+          ALTER TABLE project DROP COLUMN developerId;
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'project' AND column_name = 'developername'
+        ) THEN
+          ALTER TABLE project DROP COLUMN developerName;
+        END IF;
+
+        -- 4. Add FK from developer.projectId → project.projectId if not exists
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'fk_developer_project'
+        ) THEN
+          ALTER TABLE developer
+          ADD CONSTRAINT fk_developer_project
+          FOREIGN KEY (projectId) REFERENCES project(projectId)
+          ON DELETE SET NULL;
+        END IF;
+      END $$;
+    `);
 
     // Module table
     await client.query(`
@@ -85,6 +157,7 @@ export async function initDb({ drop = false } = {}) {
         projectId INT NOT NULL,
         notes TEXT,
         commitLink VARCHAR(255),
+        --added currency column here
         CONSTRAINT fk_module_project FOREIGN KEY (projectId) REFERENCES project(projectId) ON DELETE CASCADE
       );
     `);
@@ -172,20 +245,18 @@ export async function initDb({ drop = false } = {}) {
     // developer
     await client.query(`CREATE INDEX IF NOT EXISTS idx_developer_email ON developer (email);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_developer_teamlead ON developer (assignedTeamLead);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_developer_project ON developer (projectId);`);
 
     // team_lead
     await client.query(`CREATE INDEX IF NOT EXISTS idx_teamlead_email ON team_lead (email);`);
 
     // project
     await client.query(`CREATE INDEX IF NOT EXISTS idx_project_status ON project (status);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_project_developer ON project (developerId);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_project_createdby ON project (createdBy);`);
-
 
     // module
     await client.query(`CREATE INDEX IF NOT EXISTS idx_module_status ON module (status);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_module_project ON module (projectId);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_module_createdby ON module (createdBy);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_module_createdby ON module (createdby);`);
 
     // finance
     await client.query(`CREATE INDEX IF NOT EXISTS idx_finance_status ON finance (paymentStatus);`);
@@ -200,8 +271,12 @@ export async function initDb({ drop = false } = {}) {
       BEGIN
         -- Only insert if status changes to 'Complete'
         IF NEW.status = 'Complete' AND (OLD.status IS DISTINCT FROM NEW.status) THEN
-          INSERT INTO finance (moduleId, moduleCost, currency, notes)
-          VALUES (NEW.moduleId, NEW.cost, NEW.currency, 'Auto-created on module completion');
+          -- check if record already exists
+          IF NOT EXISTS 
+            (SELECT 1 FROM finance WHERE moduleId = NEW.moduleId) THEN
+              INSERT INTO finance (moduleId, moduleCost, currency, notes)
+              VALUES (NEW.moduleId, NEW.cost, NEW.currency, 'Auto-created on module completion');
+          END IF;
         END IF;
         RETURN NEW;
       END;
