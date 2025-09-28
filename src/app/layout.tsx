@@ -13,10 +13,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  //Run DB initiliaser once on server
-  await initDb({ drop: true }) //set drop true for clean slate on development
-  // Database initialization is now handled by the /api/db/init route
-  // await initDb({ drop: false }); 
+  //Run DB initiliaser once on server (only if DATABASE_URL is available)
+  try {
+    await initDb({ drop: false }) //set drop true for clean slate on development
+  } catch (error) {
+    // Silently handle database initialization errors during build time
+    console.log("Database initialization skipped during build time");
+  }
 
   return (
     <html lang="en" suppressHydrationWarning>
