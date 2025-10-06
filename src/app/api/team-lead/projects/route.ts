@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { getDb } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
@@ -33,12 +33,81 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const db = getDb();
     const client = await db.connect();
     try {
-        const result = await client.query('SELECT * FROM project WHERE createdBy = $1 ORDER BY projectId DESC', [auth.user.id]);
+        const result = await client.query(`
+            SELECT 
+                p.*,
+                d.firstname || ' ' || d.lastname as developername,
+                d.email as developeremail,
+                d.expertise as developerexpertise,
+                COALESCE(module_stats.total_modules, 0) as total_modules,
+                COALESCE(module_stats.completed_modules, 0) as completed_modules,
+                CASE 
+                    WHEN COALESCE(module_stats.total_modules, 0) = 0 THEN 0
+                    ELSE ROUND((COALESCE(module_stats.completed_modules, 0)::float / module_stats.total_modules::float) * 100)
+                END as progress
+            FROM project p
+            LEFT JOIN developer d ON p.projectid = d.projectid
+            LEFT JOIN (
+                SELECT 
+                    projectid,
+                    COUNT(*) as total_modules,
+                    COUNT(CASE WHEN status = 'Complete' THEN 1 END) as completed_modules
+                FROM module 
+                GROUP BY projectid
+            ) module_stats ON p.projectid = module_stats.projectid
+            WHERE p.createdBy = $1 
+            ORDER BY p.projectid DESC
+        `, [auth.user.id]);
+        
         return NextResponse.json({ projects: result.rows }, { status: 200 });
     } catch (error) {
         console.error('Get Team Lead Projects error:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    } finally {
+        client.release();
+    }
+}
+
+// PATCH: Update a project
+export async function PATCH(request: NextRequest) {
+    const auth = await verifyTeamLead(request);
+    if (!auth.authorized || !auth.user?.id) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const db = getDb();
+    const client = await db.connect();
+    try {
+        const { projectId, name, description, duration } = await request.json();
+
+        if (!projectId) {
+            return NextResponse.json({ error: 'projectId is required.' }, { status: 400 });
+        }
+
+        if (!name || !description) {
+            return NextResponse.json({ error: 'Name and description are required.' }, { status: 400 });
+        }
+
+        // Ensure the Team Lead can only update projects they created
+        const result = await client.query(
+            'UPDATE project SET name = $1, description = $2, duration = $3 WHERE projectid = $4 AND createdby = $5 RETURNING *',
+            [name, description, duration || '', projectId, auth.user.id]
+        );
+        
+        if (result.rows.length === 0) {
+            return NextResponse.json({ error: 'Project not found or you do not have permission to update it.' }, { status: 404 });
+        }
+
+        return NextResponse.json({ 
+            message: 'Project updated successfully.',
+            project: result.rows[0]
+        }, { status: 200 });
+
+    } catch (error: any) {
+        console.error('Update Project error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     } finally {
         client.release();
@@ -52,6 +121,7 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const db = getDb();
     const client = await db.connect();
     try {
         const { searchParams } = new URL(request.url);
@@ -63,7 +133,7 @@ export async function DELETE(request: NextRequest) {
 
         // Ensure the Team Lead can only delete projects they created
         const result = await client.query(
-            'DELETE FROM project WHERE projectId = $1 AND createdBy = $2 RETURNING *',
+            'DELETE FROM project WHERE projectid = $1 AND createdBy = $2 RETURNING *',
             [projectId, auth.user.id]
         );
         

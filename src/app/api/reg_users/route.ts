@@ -8,7 +8,7 @@ import jwt from 'jsonwebtoken';
 
 async function verifyAdmin(request: NextRequest) {
     const cookieStore = cookies();
-    const tokenCookie = await(request.cookies.get('authToken'));
+    const tokenCookie = request.cookies.get('authToken');
 
     if (!tokenCookie) {
         return { authenticated: false, error: 'Not authenticated', status: 401 };

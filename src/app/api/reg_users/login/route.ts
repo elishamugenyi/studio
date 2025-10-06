@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { getDb } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: `Too many failed attempts. Please try again in ${retryAfter} seconds.` }, { status: 429 });
         }
 
+        const db = getDb();
         const client = await db.connect();
         const result = await client.query('SELECT * FROM reg_users WHERE email = $1', [email]);
         client.release();

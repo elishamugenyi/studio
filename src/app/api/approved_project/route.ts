@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/db';
+import { getDb } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
@@ -7,7 +7,7 @@ import { cookies } from 'next/headers';
 // Helper function to verify JWT
 async function verifyAuth(request: NextRequest) {
     const cookieStore = cookies();
-    const tokenCookie = await(request.cookies.get('authToken'));
+    const tokenCookie = request.cookies.get('authToken');
 
     if (!tokenCookie) {
         return { authenticated: false, error: 'Not authenticated', status: 401 };
@@ -29,29 +29,30 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const db = getDb();
     const client = await db.connect();
     try {
         const query = `
             SELECT
-                p.projectId,
+                p.projectid,
                 p.name AS "projectName",
                 p.description,
                 p.duration,
                 p.status,
                 p.progress,
-                p.developerName,
+                p.developername,
                 d.email AS "developerEmail",
                 CONCAT(tl.firstName, ' ', tl.lastName) AS "teamLeadName"
             FROM
                 project p
             LEFT JOIN
-                developer d ON p.developerId = d.developerId
+                developer d ON p.developerid = d.developerid
             LEFT JOIN
-                team_lead tl ON d.assignedTeamLead = tl.teamLeadId
+                team_lead tl ON d.assignedTeamLead = tl.teamLeadid
             WHERE
                 p.status = 'Approved'
             ORDER BY
-                p.projectId DESC;
+                p.projectid DESC;
         `;
         
         const result = await client.query(query);

@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/db';
+import { getDb } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
@@ -34,23 +34,24 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const db = getDb();
     const client = await db.connect();
     try {
-        // First, get the developerId from the email in the JWT
+        // First, get the developerid from the email in the JWT
         const devResult = await client.query('SELECT developerid FROM developer WHERE email = $1', [auth.user.email]);
         if (devResult.rows.length === 0) {
             return NextResponse.json({ error: 'Developer profile not found.' }, { status: 404 });
         }
-        const developerId = devResult.rows[0].developerid;
+        const developerid = devResult.rows[0].developerid;
 
-        // Fetch projects assigned to this developer
-        const projectsResult = await client.query('SELECT * FROM project WHERE developerId = $1 ORDER BY projectId DESC', [developerId]);
+        // Fetch approved projects assigned to this developer
+        const projectsResult = await client.query('SELECT * FROM project WHERE projectid = (SELECT projectid FROM developer WHERE developerid = $1) AND status = $2 ORDER BY projectid DESC', [developerid, 'Approved']);
         const projects = projectsResult.rows;
 
         // For each project, fetch its modules
         const projectsWithModules = await Promise.all(
             projects.map(async (project) => {
-                const modulesResult = await client.query('SELECT * FROM module WHERE projectId = $1 ORDER BY moduleId ASC', [project.projectid]);
+                const modulesResult = await client.query('SELECT * FROM module WHERE projectid = $1 ORDER BY moduleid ASC', [project.projectid]);
                 return { ...project, modules: modulesResult.rows };
             })
         );

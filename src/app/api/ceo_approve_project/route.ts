@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { getDb } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
@@ -33,9 +33,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const db = getDb();
     const client = await db.connect();
     try {
-        const result = await client.query("SELECT * FROM project WHERE status = 'Pending' ORDER BY projectId DESC");
+        const result = await client.query("SELECT * FROM project WHERE status = 'Pending' ORDER BY projectid DESC");
         return NextResponse.json({ projects: result.rows }, { status: 200 });
     } catch (error) {
         console.error('Get Pending Projects error:', error);
@@ -52,12 +53,13 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const db = getDb();
     const client = await db.connect();
     try {
-        const { projectId, status, review } = await request.json();
+        const { projectid, status, review } = await request.json();
 
-        if (!projectId || !status) {
-            return NextResponse.json({ error: 'Missing required fields: projectId and status are required.' }, { status: 400 });
+        if (!projectid || !status) {
+            return NextResponse.json({ error: 'Missing required fields: projectid and status are required.' }, { status: 400 });
         }
 
         if (status !== 'Approved' && status !== 'Rejected') {
@@ -69,8 +71,8 @@ export async function PUT(request: NextRequest) {
         }
 
         const result = await client.query(
-            'UPDATE project SET status = $1, review = $2 WHERE projectId = $3 AND status = \'Pending\' RETURNING *',
-            [status, review || '', projectId]
+            'UPDATE project SET status = $1, review = $2 WHERE projectid = $3 AND status = \'Pending\' RETURNING *',
+            [status, review || '', projectid]
         );
 
         if (result.rows.length === 0) {

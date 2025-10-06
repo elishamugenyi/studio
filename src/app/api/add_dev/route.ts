@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/db';
+import { getDb } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
@@ -7,7 +7,7 @@ import { cookies } from 'next/headers';
 // Helper function to verify JWT and check for Admin role
 async function verifyAdmin(request: NextRequest) {
     const cookieStore = cookies();
-    const tokenCookie = await(request.cookies.get('authToken'));
+    const tokenCookie = request.cookies.get('authToken');
 
     if (!tokenCookie) {
         return { authenticated: false, authorized: false, error: 'Not authenticated', status: 401 };
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     if (!auth.authorized) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-
+    const db = getDb();
     const client = await db.connect();
     try {
         const { firstName, lastName, email, teamLeadId } = await request.json();
@@ -72,6 +72,7 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
     
+    const db = getDb();
     const client = await db.connect();
     try {
         const { developerId, firstName, lastName, email, teamLeadId } = await request.json();
@@ -118,7 +119,7 @@ export async function PUT(request: NextRequest) {
 // Helper function to verify JWT
 async function verifyAuth(request: NextRequest) {
     const cookieStore = cookies();
-    const tokenCookie = await(request.cookies.get('authToken'));
+    const tokenCookie = request.cookies.get('authToken');
 
     if (!tokenCookie) {
         return { authenticated: false, error: 'Not authenticated', status: 401 };
@@ -141,6 +142,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const db = getDb();
     const client = await db.connect();
     try {
         const result = await client.query('SELECT developerid, firstname, lastname, email FROM developer ORDER BY lastName, firstName');

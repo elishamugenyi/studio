@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
 // Initialize and manage database schema
 export async function initDb({ drop = false } = {}) {
@@ -10,19 +10,23 @@ export async function initDb({ drop = false } = {}) {
 
   let client;
   try {
+    console.log("🔌 Connecting to database...");
+    const db = getDb();
     client = await db.connect();
+    console.log("✅ Database connection established");
     if (drop) {
       console.log("⚠️ Dropping existing tables...");
       await client.query(`
-        DROP TABLE IF EXISTS finance CASCADE;
-        DROP TABLE IF EXISTS module CASCADE;
-        DROP TABLE IF EXISTS developer CASCADE;
-        DROP TABLE IF EXISTS team_lead CASCADE;
-        DROP TABLE IF EXISTS project CASCADE;
+        --DROP TABLE IF EXISTS finance CASCADE;
+        --DROP TABLE IF EXISTS module CASCADE;
+        --DROP TABLE IF EXISTS developer CASCADE;
+        --DROP TABLE IF EXISTS team_lead CASCADE;
+        --DROP TABLE IF EXISTS project CASCADE;
       `);
     }
 
-    // Create reg-users table if it doesn’t exist
+    // Create reg-users table if it doesn't exist
+    console.log("📋 Creating reg_users table...");
     await client.query(`
       CREATE TABLE IF NOT EXISTS reg_users (
         regID SERIAL PRIMARY KEY,
@@ -35,6 +39,7 @@ export async function initDb({ drop = false } = {}) {
     `);
 
     // Team Lead table
+    console.log("👥 Creating team_lead table...");
     await client.query(`
       CREATE TABLE IF NOT EXISTS team_lead (
         teamLeadId SERIAL PRIMARY KEY,
@@ -45,6 +50,7 @@ export async function initDb({ drop = false } = {}) {
     `);
     
     // Project table
+    console.log("📁 Creating project table...");
     await client.query(`
       CREATE TABLE IF NOT EXISTS project (
         projectId SERIAL PRIMARY KEY,
@@ -72,19 +78,24 @@ export async function initDb({ drop = false } = {}) {
       
         -- 2. Drop constraint if it already exists (safety)
         IF EXISTS (
-          SELECT 1 FROM pg_constraint WHERE conname = 'fk_project_createdBy'
+          SELECT 1 FROM pg_constraint WHERE conname = 'fk_project_createdby'
         ) THEN
-          ALTER TABLE project DROP CONSTRAINT fk_project_createdBy;
+          ALTER TABLE project DROP CONSTRAINT fk_project_createdby;
         END IF;
       
-        -- 3. Re-add the FK constraint
-        ALTER TABLE project 
-          ADD CONSTRAINT fk_project_createdBy
-          FOREIGN KEY (createdBy) REFERENCES reg_users(regID) ON DELETE SET NULL;
+        -- 3. Re-add the FK constraint if it doesn't exist
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'fk_project_createdby'
+        ) THEN
+          ALTER TABLE project 
+            ADD CONSTRAINT fk_project_createdby
+            FOREIGN KEY (createdby) REFERENCES reg_users(regid) ON DELETE SET NULL;
+        END IF;
       END $$;
     `);
           
     // Developer table, projectId will be moved to this table
+    console.log("👨‍💻 Creating developer table...");
     await client.query(`
       CREATE TABLE IF NOT EXISTS developer (
         developerId SERIAL PRIMARY KEY,
@@ -302,7 +313,11 @@ export async function initDb({ drop = false } = {}) {
     return { success: true, message: "Database initialized successfully." };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown database error";
-    console.error("❌ Database init error:", errorMessage);
+    console.error("❌ Database init error:", error);
+    console.error("❌ Error details:", errorMessage);
+    if (error instanceof Error && error.stack) {
+      console.error("❌ Stack trace:", error.stack);
+    }
     return { success: false, message: "Database initialization failed.", error: errorMessage };
   } finally {
     if (client) {
