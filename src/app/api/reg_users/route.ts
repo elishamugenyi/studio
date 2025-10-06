@@ -1,6 +1,6 @@
 //this is the route to handle new user creation
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDb } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { validateUserInput } from '@/lib/validator';
 import { cookies } from 'next/headers';
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
         if (!validation.valid) {
             return NextResponse.json({ error: validation.errors.join(', ') }, { status: 400 });
         }
-
+        const db = getDb();
         const client = await db.connect();
 
         // Check if user already exists
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         }
 
         const result = await client.query(
-            'INSERT INTO reg_users (firstName, lastName, email, role) VALUES ($1, $2, $3, $4) RETURNING regID, firstName, lastName, email, role',
+            'INSERT INTO reg_users (firstname, lastname, email, role) VALUES ($1, $2, $3, $4) RETURNING regid, firstname, lastname, email, role',
             [firstName, lastName, email, role]
         );
         
@@ -87,6 +87,7 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: 'Passwords do not match.' }, { status: 400 });
         }
 
+        const db = getDb();
         const client = await db.connect();
         
         // Find the user by email
@@ -111,7 +112,7 @@ export async function PUT(request: NextRequest) {
 
         // Update user with the hashed password
         const updateResult = await client.query(
-            'UPDATE reg_users SET password = $1 WHERE email = $2 RETURNING regID, firstName, lastName, email, role',
+            'UPDATE reg_users SET password = $1 WHERE email = $2 RETURNING regid, firstname, lastname, email, role',
             [hashedPassword, email]
         );
 
@@ -160,6 +161,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+        const db = getDb();
         const client = await db.connect();
         const result = await client.query('SELECT regid, firstname, lastname, email, role, password IS NOT NULL as has_password FROM reg_users WHERE email = $1', [email]);
         client.release();

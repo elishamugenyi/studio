@@ -40,15 +40,15 @@ export async function GET(request: NextRequest) {
                 p.duration,
                 p.status,
                 p.progress,
-                p.developername,
+                d.firstname || ' ' || d.lastname AS "developerName",
                 d.email AS "developerEmail",
-                CONCAT(tl.firstName, ' ', tl.lastName) AS "teamLeadName"
+                CONCAT(tl.firstname, ' ', tl.lastname) AS "teamLeadName"
             FROM
                 project p
             LEFT JOIN
-                developer d ON p.developerid = d.developerid
+                developer d ON p.projectid = d.projectid
             LEFT JOIN
-                team_lead tl ON d.assignedTeamLead = tl.teamLeadid
+                team_lead tl ON d.assignedteamlead = tl.teamleadid
             WHERE
                 p.status = 'Approved'
             ORDER BY

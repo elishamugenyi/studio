@@ -36,7 +36,15 @@ export async function GET(request: NextRequest) {
     const db = getDb();
     const client = await db.connect();
     try {
-        const result = await client.query("SELECT * FROM project WHERE status = 'Pending' ORDER BY projectid DESC");
+        const result = await client.query(`
+            SELECT 
+                p.*,
+                d.firstname || ' ' || d.lastname as developername
+            FROM project p
+            LEFT JOIN developer d ON p.projectid = d.projectid
+            WHERE p.status = 'Pending' 
+            ORDER BY p.projectid DESC
+        `);
         return NextResponse.json({ projects: result.rows }, { status: 200 });
     } catch (error) {
         console.error('Get Pending Projects error:', error);
@@ -56,10 +64,10 @@ export async function PUT(request: NextRequest) {
     const db = getDb();
     const client = await db.connect();
     try {
-        const { projectid, status, review } = await request.json();
+        const { projectId, status, review } = await request.json();
 
-        if (!projectid || !status) {
-            return NextResponse.json({ error: 'Missing required fields: projectid and status are required.' }, { status: 400 });
+        if (!projectId || !status) {
+            return NextResponse.json({ error: 'Missing required fields: projectId and status are required.' }, { status: 400 });
         }
 
         if (status !== 'Approved' && status !== 'Rejected') {
@@ -72,7 +80,7 @@ export async function PUT(request: NextRequest) {
 
         const result = await client.query(
             'UPDATE project SET status = $1, review = $2 WHERE projectid = $3 AND status = \'Pending\' RETURNING *',
-            [status, review || '', projectid]
+            [status, review || '', projectId]
         );
 
         if (result.rows.length === 0) {

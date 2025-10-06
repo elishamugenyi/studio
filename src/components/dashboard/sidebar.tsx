@@ -50,7 +50,10 @@ const roleNavItems: Record<UserRole, NavItem[]> = {
     { href: '/dashboard/payments', icon: CreditCard, label: 'Payments' },
     { href: '/dashboard/achievements', icon: Trophy, label: 'Achievements' },
   ],
-  'Finance': [],
+  'Finance': [
+    { href: '/dashboard/pending-payments', icon: CreditCard, label: 'Pending Payments' },
+    { href: '/dashboard/payment-reports', icon: FileText, label: 'Payment Reports' },
+  ],
   'Planner': [],
   'Admin': [
       { href: '/dashboard/admin', icon: UserCog, label: 'User Management'},
