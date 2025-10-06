@@ -48,7 +48,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, Loader2, FolderGit2, CheckCircle, Clock, Link, Trash2 } from 'lucide-react';
+import { PlusCircle, Loader2, FolderGit2, CheckCircle, Clock, Link, Trash2, Play } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import {
@@ -213,6 +213,43 @@ function AddModuleForm({ projectId, onModuleAdded }: { projectId: number; onModu
   );
 }
 
+function StartModuleButton({ module, onModuleUpdated }: { module: Module, onModuleUpdated: () => void }) {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { toast } = useToast();
+
+    const handleStart = async () => {
+        setIsSubmitting(true);
+        try {
+            const response = await fetch('/api/modules', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ moduleId: module.moduleid }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Failed to start module.');
+
+            toast({ title: 'Module Started!', description: `"${module.name}" is now in progress.` });
+            onModuleUpdated();
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Button 
+            size="sm" 
+            onClick={handleStart}
+            disabled={isSubmitting || module.status !== 'Pending'}
+            className="bg-blue-600 hover:bg-blue-700"
+        >
+            <Play className="mr-2 h-4 w-4" />
+            {isSubmitting ? 'Starting...' : 'Start'}
+        </Button>
+    );
+}
+
 function MarkCompleteDialog({ module, onModuleUpdated }: { module: Module, onModuleUpdated: () => void }) {
     const [commitLink, setCommitLink] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -353,8 +390,31 @@ export default function MyProjectsPage() {
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <Badge variant={module.status === 'Complete' ? 'default' : 'secondary'}>{module.status}</Badge>
-                                                <MarkCompleteDialog module={module} onModuleUpdated={fetchProjects} />
+                                                <Badge 
+                                                    variant={module.status === 'Complete' ? 'default' : 'secondary'}
+                                                    className={
+                                                        module.status === 'Complete' ? 'bg-green-600 hover:bg-green-700' :
+                                                        module.status === 'Started' ? 'bg-blue-600 hover:bg-blue-700' :
+                                                        module.status === 'Pending' ? 'bg-orange-600 hover:bg-orange-700' :
+                                                        'bg-gray-600 hover:bg-gray-700'
+                                                    }
+                                                >
+                                                    {module.status}
+                                                </Badge>
+                                                <div className="flex items-center gap-2">
+                                                    {module.status === 'Pending' && (
+                                                        <StartModuleButton module={module} onModuleUpdated={fetchProjects} />
+                                                    )}
+                                                    {module.status === 'Started' && (
+                                                        <MarkCompleteDialog module={module} onModuleUpdated={fetchProjects} />
+                                                    )}
+                                                    {module.status === 'Complete' && (
+                                                        <Button size="sm" disabled className="bg-green-600">
+                                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                                            Completed
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}

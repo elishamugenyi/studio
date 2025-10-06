@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Check, X, Loader2, FileCheck } from 'lucide-react';
+import { Check, X, Loader2, FileCheck, MessageSquare } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface Project {
@@ -38,6 +38,7 @@ interface Project {
   description: string;
   duration: string;
   developername: string;
+  review?: string;
 }
 
 export default function SubmittedRequestsPage() {
@@ -147,7 +148,15 @@ export default function SubmittedRequestsPage() {
         {projects.map((project) => (
           <TableRow key={project.projectid}>
             <TableCell>
-              <div className="font-medium">{project.name}</div>
+              <div className="flex items-center gap-2">
+                <div className="font-medium">{project.name}</div>
+                {project.review && project.review.includes('APPEAL RESPONSE:') && (
+                  <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
+                    <MessageSquare className="h-3 w-3" />
+                    Appeal
+                  </div>
+                )}
+              </div>
               <div className="text-sm text-muted-foreground">{project.duration}</div>
             </TableCell>
             <TableCell className="hidden md:table-cell">{project.description}</TableCell>

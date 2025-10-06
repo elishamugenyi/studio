@@ -44,6 +44,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields: name, description, duration, and at least one developerId are required.' }, { status: 400 });
     }
     
+    // Check if there are any available developers in the system
+    const availableDevsResult = await client.query(`
+        SELECT COUNT(*) as count 
+        FROM developer d 
+        WHERE d.projectid IS NULL
+    `);
+    
+    if (parseInt(availableDevsResult.rows[0].count) === 0) {
+        client.release();
+        return NextResponse.json({ error: 'No available developers found. All developers are currently assigned to projects.' }, { status: 400 });
+    }
+    
+    // Additional check for Team Leads - ensure they have assigned developers
+    if (auth.user.role === 'Team Lead') {
+        const teamLeadDevsResult = await client.query(`
+            SELECT COUNT(*) as count 
+            FROM developer d 
+            WHERE d.assignedteamlead = $1 AND d.projectid IS NULL
+        `, [auth.user.id]);
+        
+        if (parseInt(teamLeadDevsResult.rows[0].count) === 0) {
+            client.release();
+            return NextResponse.json({ error: 'You have no available developers assigned to you. Please contact an admin to assign developers to your team.' }, { status: 400 });
+        }
+    }
+    
     await client.query('BEGIN');
 
     const createdProjects = [];
@@ -57,15 +83,39 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: `Developer with ID ${devId} not found.` }, { status: 404 });
         }
         
+        const dev = devResult.rows[0];
+        
+        // Check if developer is already assigned to a project
+        const existingProjectResult = await client.query('SELECT * FROM project WHERE projectid = (SELECT projectid FROM developer WHERE developerid = $1)', [devId]);
+        if (existingProjectResult.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return NextResponse.json({ error: `Developer ${dev.firstname} ${dev.lastname} is already assigned to a project.` }, { status: 403 });
+        }
+        
+        // Role-based authorization checks
+        if (auth.user.role === 'Team Lead') {
+            // Team Lead can only assign developers assigned to them
+            if (dev.assignedteamlead !== auth.user.id) {
+                await client.query('ROLLBACK');
+                return NextResponse.json({ error: `You are not authorized to assign developer ${dev.firstname} ${dev.lastname} to this project.` }, { status: 403 });
+            }
+        } else if (auth.user.role === 'CEO') {
+            // CEO can assign any developer, but developer must have a team lead assigned
+            if (!dev.assignedteamlead) {
+                await client.query('ROLLBACK');
+                return NextResponse.json({ error: `Developer ${dev.firstname} ${dev.lastname} must be assigned to a team lead before being assigned to a project.` }, { status: 403 });
+            }
+        }
+        
         const createdBy = auth.user.id;
         
         // Create project
-        const projectResult = await client.query(
+        const newProjectResult = await client.query(
             `INSERT INTO project (name, description, duration, status, review, progress, createdBy) 
              VALUES ($1, $2, $3, 'Pending', '', 0, $4) RETURNING *`,
             [name, description, duration, createdBy]
         );
-        const project = projectResult.rows[0];
+        const project = newProjectResult.rows[0];
 
         // Assign the developer to the new project
         await client.query(

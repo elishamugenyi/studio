@@ -201,8 +201,32 @@ export async function initDb({ drop = false } = {}) {
       (SELECT 1 FROM information_schema.columns WHERE table_name = 'module' AND column_name = 'createdby') THEN
         ALTER TABLE module ADD COLUMN createdBy INT;
       END IF;
+      
+      -- 2. Convert existing createdby column from UUID to INT if needed
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'module' 
+        AND column_name = 'createdby' 
+        AND data_type = 'uuid'
+      ) THEN
+        -- First drop the foreign key constraint if it exists
+        IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_module_createdby') THEN
+          ALTER TABLE module DROP CONSTRAINT fk_module_createdby;
+        END IF;
+        
+        -- Add a temporary column
+        ALTER TABLE module ADD COLUMN createdby_temp INT;
+        
+        -- Copy data from UUID to INT (this will need to be handled carefully)
+        -- For now, we'll set it to NULL and let new records populate correctly
+        UPDATE module SET createdby_temp = NULL;
+        
+        -- Drop the old column and rename the new one
+        ALTER TABLE module DROP COLUMN createdBy;
+        ALTER TABLE module RENAME COLUMN createdby_temp TO createdBy;
+      END IF;
 
-      -- 2. Add constraint if missing
+      -- 3. Add constraint if missing
       IF NOT EXISTS (
         SELECT 1 
         FROM pg_constraint 

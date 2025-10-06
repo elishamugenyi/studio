@@ -31,7 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { FilePlus, Trash2, Loader2, AlertCircle, Edit, Save, X } from 'lucide-react';
+import { FilePlus, Trash2, Loader2, AlertCircle, Edit, Save, X, MessageSquare } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -57,6 +57,7 @@ interface Project {
   progress: number;
   total_modules: number;
   completed_modules: number;
+  review?: string;
 }
 
 function DeleteProjectDialog({ project, onProjectDeleted }: { project: Project, onProjectDeleted: () => void }) {
@@ -119,6 +120,137 @@ function DeleteProjectDialog({ project, onProjectDeleted }: { project: Project, 
             </AlertDialogContent>
         </AlertDialog>
     )
+}
+
+function AppealProjectDialog({ project, onProjectUpdated }: { project: Project, onProjectUpdated: () => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formData, setFormData] = useState({
+        name: project.name,
+        description: project.description,
+        duration: project.duration || '',
+        appealresponse: '',
+    });
+    const { toast } = useToast();
+
+    const handleAppeal = async () => {
+        if (!formData.name.trim() || !formData.description.trim()) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Name and description are required.' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const response = await fetch('/api/project-appeal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectId: project.projectid,
+                    name: formData.name,
+                    description: formData.description,
+                    duration: formData.duration,
+                    appealresponse: formData.appealresponse,
+                }),
+            });
+            
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Failed to submit appeal.');
+            
+            toast({ title: "Appeal Submitted", description: "Your project has been resubmitted for review." });
+            onProjectUpdated();
+            setIsOpen(false);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="bg-orange-600 hover:bg-orange-700 text-white border-orange-600"
+                >
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Appeal
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                    <DialogTitle>Appeal Rejected Project</DialogTitle>
+                    <DialogDescription>
+                        Review the rejection feedback and update your project details to address the concerns.
+                    </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4">
+                    {/* Show original review */}
+                    {project.review && (
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <h4 className="font-semibold text-red-800 mb-2">Rejection Feedback:</h4>
+                            <p className="text-sm text-red-700 whitespace-pre-wrap">{project.review}</p>
+                        </div>
+                    )}
+
+                    {/* Edit form */}
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-sm font-medium">Project Name</label>
+                            <Input
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                placeholder="Enter project name"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="text-sm font-medium">Description</label>
+                            <Textarea
+                                value={formData.description}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                placeholder="Describe your project"
+                                rows={4}
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="text-sm font-medium">Duration</label>
+                            <Input
+                                value={formData.duration}
+                                onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                                placeholder="e.g., 3 months, 6 weeks"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="text-sm font-medium">Appeal Response (Optional)</label>
+                            <Textarea
+                                value={formData.appealresponse}
+                                onChange={(e) => setFormData({ ...formData, appealresponse: e.target.value })}
+                                placeholder="Address the feedback and explain any changes made..."
+                                rows={3}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsOpen(false)}>
+                        <X className="mr-2 h-4 w-4" />
+                        Cancel
+                    </Button>
+                    <Button onClick={handleAppeal} disabled={isSubmitting} className="bg-orange-600 hover:bg-orange-700">
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Submit Appeal
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 function EditProjectDialog({ project, onProjectUpdated }: { project: Project, onProjectUpdated: () => void }) {
@@ -335,6 +467,10 @@ export default function MyCreatedProjectsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2 overflow-visible">
+                            {/* Show appeal button for rejected projects */}
+                            {project.status === 'Rejected' && (
+                                <AppealProjectDialog project={project} onProjectUpdated={fetchProjects} />
+                            )}
                             {/* Always show edit button, but disable for approved/completed projects */}
                             <EditProjectDialog project={project} onProjectUpdated={fetchProjects} />
                             <DeleteProjectDialog project={project} onProjectDeleted={fetchProjects} />

@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
                     COUNT(CASE WHEN paymentstatus = 'Pending' THEN 1 END) as pending_count,
                     COUNT(CASE WHEN paymentstatus = 'Rejected' THEN 1 END) as rejected_count,
                     COALESCE(SUM(CASE WHEN paymentstatus = 'Paid' THEN amount ELSE 0 END), 0) as total_paid_amount,
-                    COALESCE(SUM(CASE WHEN paymentstatus = 'Pending' THEN amount ELSE 0 END), 0) as total_pending_amount,
+                    COALESCE(SUM(CASE WHEN paymentstatus = 'Pending' THEN modulecost ELSE 0 END), 0) as total_pending_amount,
                     COALESCE(SUM(modulecost), 0) as total_module_costs
                 FROM finance
             `);

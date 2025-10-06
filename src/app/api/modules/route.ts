@@ -30,7 +30,7 @@ async function verifyDeveloper(request: NextRequest) {
 // POST: Create a new module
 export async function POST(request: NextRequest) {
     const auth = await verifyDeveloper(request);
-    if (!auth.authorized) {
+    if (!auth.authorized || !auth.user?.id) {
         return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
@@ -43,10 +43,17 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
+        // Get the developerid from the developer table using the logged-in user's email
+        const devResult = await client.query('SELECT developerid FROM developer WHERE email = $1', [auth.user.email]);
+        if (devResult.rows.length === 0) {
+            return NextResponse.json({ error: 'Developer profile not found.' }, { status: 404 });
+        }
+        const developerId = devResult.rows[0].developerid;
+
         const result = await client.query(
-            `INSERT INTO module (name, description, startdate, enddate, cost, currency, projectid, status) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pending') RETURNING *`,
-            [name, description, startDate, endDate, cost, currency, projectId]
+            `INSERT INTO module (name, description, startdate, enddate, cost, currency, createdby, projectid, status) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Pending') RETURNING *`,
+            [name, description, startDate, endDate, cost, currency, developerId, projectId]
         );
 
         return NextResponse.json({ module: result.rows[0] }, { status: 201 });
